@@ -75,25 +75,30 @@ export function initIpc(): void {
     app.quit();
   });
   // Delete a merged worktree
-  ipcMainHandleSafe('delete-worktree', async (_e, worktreePath: string) => {
-    // In test environment, allow quick success path without executing git
+  ipcMainHandleSafe('delete-worktree', async ( _e, worktreePath: string) => {
     if (process.env.NODE_ENV === 'test') {
       return true;
     }
-    try {
-      const { execSync } = require('child_process');
-      const root = execSync(`git -C "${worktreePath}" rev-parse --show-toplevel`).toString().trim();
-      if (root) {
-        execSync(`git -C \"${root}\" worktree remove \"${worktreePath}\"`, { stdio: 'ignore' });
-        // refresh state after deletion
-        await refreshAllAsync();
-        return true;
-      }
-      return false;
-    } catch {
-      return false;
-    }
+    const del = await deleteWorktreeAtPath(worktreePath);
+    return del;
   });
+
+export async function deleteWorktreeAtPath(worktreePath: string): Promise<boolean> {
+  try {
+    const { execSync } = require('child_process');
+    const root = execSync(`git -C "${worktreePath}" rev-parse --show-toplevel`).toString().trim();
+    if (root) {
+      execSync(`git -C "${root}" worktree remove "${worktreePath}"`, { stdio: 'ignore' });
+      await refreshAllAsync();
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+
 
   // Hook for when window shown
   ipcMainHandleSafe('window-shown', async () => {
