@@ -11,3 +11,9 @@ The `git` service handles all interactions with the git CLI. It is responsible f
 - `lockWorktreeAsync(path)`: Prevents a worktree from being deleted.
 - `unlockWorktreeAsync(path)`: Allows a worktree to be deleted.
 - `removeWorktreeAsync(root, path)`: Deletes a git worktree.
+
+## Failure Tolerance
+
+The service is designed to be resilient to environment issues:
+- Functions catch git command failures and return safe defaults (e.g., clean status, empty branch list, or fallback "main" branch).
+- Path existence is verified before attempting operations to prevent unnecessary CLI calls.

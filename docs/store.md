@@ -9,3 +9,8 @@ The `store` service manages the application configuration and project persistenc
 - `addProject(cfg, opts)`: Adds a new worktree project to the configuration.
 - `rmProject(cfg, id)`: Removes a project from the configuration.
 - `updateProject(cfg, proj)`: Updates an existing project's data.
+
+## Resilience
+
+- `load()`: If the configuration file is missing or contains invalid JSON, the service gracefully falls back to a default configuration.
+- `addProject()`: Handles cases where the initial git scan of a project path fails by returning an entry with an empty branch list.
