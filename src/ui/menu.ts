@@ -1,15 +1,7 @@
 import { Menu, MenuItem, shell, dialog } from 'electron';
-import { Config, Project, Branch, ScopeNode, toSyncStatus, SyncStatus } from '../core/types';
+import { Config, Project, Branch, ScopeNode, toSyncStatus } from '../core/types';
 import { buildTree } from '../services/scope';
-
-/**
- * Status emoji for stoplight display
- */
-const STATUS_ICON: Record<SyncStatus, string> = {
-  green: '🟢',
-  yellow: '🟡',
-  red: '🔴',
-};
+import { statusIcons } from './icons';
 
 interface MenuCtx {
   cfg: Config;
@@ -26,11 +18,11 @@ interface MenuCtx {
  */
 function mkBranchItem(br: Branch, ctx: MenuCtx): MenuItem {
   const status = toSyncStatus(br.status);
-  const icon = STATUS_ICON[status];
   const ago = br.status.ts ? fmtAgo(br.status.ts) : 'never';
 
   return new MenuItem({
-    label: `${icon} ${br.name}`,
+    label: br.name,
+    icon: statusIcons[status],
     sublabel: `checked ${ago}`,
     click: () => ctx.onOpenPath(br.path),
   });
