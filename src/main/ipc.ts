@@ -11,10 +11,12 @@ import { load, save, addProject, rmProject, updateProject } from '../services/st
 import { loadScanCache, saveScanCache, isCacheStale } from '../services/cache';
 
 const DOCS_PATH = join(homedir(), 'Documents');
-const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const REFRESH_THROTTLE = 30 * 1000; // 30 seconds minimum between refreshes
+const SCAN_CACHE_TTL = 5 * 60 * 1000; // 5 minutes for scan cache
 
 let cfg: Config;
 let isRefreshing = false;
+let lastRefreshTs = 0;
 let mainWindow: BrowserWindow | null = null;
 
 /**
@@ -91,7 +93,7 @@ export function initIpc(): void {
   ipcMain.handle('get-candidates', async () => {
     let cache = loadScanCache();
 
-    if (!cache || isCacheStale(cache, REFRESH_INTERVAL)) {
+    if (!cache || isCacheStale(cache, SCAN_CACHE_TTL)) {
       const candidates = await scanForWorktreesAsync(DOCS_PATH, 3);
       cache = { ts: Date.now(), candidates };
       saveScanCache(cache);
@@ -127,9 +129,23 @@ export function initIpc(): void {
     app.quit();
   });
 
-  // Start background refresh
-  setInterval(refreshAllAsync, REFRESH_INTERVAL);
-  refreshAllAsync();
+  // Refresh on window show (throttled)
+  ipcMain.handle('window-shown', async () => {
+    await refreshAllThrottledAsync();
+  });
+}
+
+/**
+ * Refresh all project statuses (throttled version for window open)
+ */
+async function refreshAllThrottledAsync(): Promise<void> {
+  const now = Date.now();
+  if (now - lastRefreshTs < REFRESH_THROTTLE) {
+    // Too soon, skip refresh but still notify with cached state
+    notifyRenderer();
+    return;
+  }
+  await refreshAllAsync();
 }
 
 /**
@@ -138,6 +154,7 @@ export function initIpc(): void {
 async function refreshAllAsync(): Promise<void> {
   if (isRefreshing) return;
   isRefreshing = true;
+  lastRefreshTs = Date.now();
   notifyRenderer();
 
   try {
@@ -187,7 +204,7 @@ async function refreshProjectAsync(id: string): Promise<void> {
 async function handleAddProject(): Promise<WorktreeCandidate[] | null> {
   let cache = loadScanCache();
 
-  if (!cache || isCacheStale(cache, REFRESH_INTERVAL)) {
+  if (!cache || isCacheStale(cache, SCAN_CACHE_TTL)) {
     const candidates = await scanForWorktreesAsync(DOCS_PATH, 3);
     cache = { ts: Date.now(), candidates };
     saveScanCache(cache);

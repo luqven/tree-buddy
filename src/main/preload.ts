@@ -19,6 +19,7 @@ export interface TreeBuddyAPI {
   pickDirectory: () => Promise<string | null>;
   confirmAddProject: (path: string, name: string) => Promise<Project>;
   quit: () => Promise<void>;
+  windowShown: () => Promise<void>;
   onStateUpdate: (cb: (state: AppState) => void) => () => void;
 }
 
@@ -35,6 +36,7 @@ const api: TreeBuddyAPI = {
   pickDirectory: () => ipcRenderer.invoke('pick-directory'),
   confirmAddProject: (path, name) => ipcRenderer.invoke('confirm-add-project', path, name),
   quit: () => ipcRenderer.invoke('quit'),
+  windowShown: () => ipcRenderer.invoke('window-shown'),
   onStateUpdate: (cb) => {
     const handler = (_e: Electron.IpcRendererEvent, state: AppState) => cb(state);
     ipcRenderer.on('state-update', handler);

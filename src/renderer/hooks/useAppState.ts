@@ -20,13 +20,16 @@ export function useAppState() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [candidates, setCandidates] = useState<WorktreeCandidate[]>([]);
 
-  // Load initial state and subscribe to updates
+  // Load initial state, subscribe to updates, and trigger refresh on open
   useEffect(() => {
     const api = window.treeBuddy;
     if (!api) return;
 
     // Get initial state
     api.getState().then(setState);
+
+    // Trigger throttled refresh on window open
+    api.windowShown();
 
     // Subscribe to updates
     const unsubscribe = api.onStateUpdate(setState);
