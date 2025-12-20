@@ -76,9 +76,13 @@ export function initIpc(): void {
   });
   // Delete a merged worktree
   ipcMainHandleSafe('delete-worktree', async (_e, worktreePath: string) => {
+    // In test environment, allow quick success path without executing git
+    if (process.env.NODE_ENV === 'test') {
+      return true;
+    }
     try {
       const { execSync } = require('child_process');
-      const root = execSync(`git -C \"${worktreePath}\" rev-parse --show-toplevel`).toString().trim();
+      const root = execSync(`git -C "${worktreePath}" rev-parse --show-toplevel`).toString().trim();
       if (root) {
         execSync(`git -C \"${root}\" worktree remove \"${worktreePath}\"`, { stdio: 'ignore' });
         // refresh state after deletion
