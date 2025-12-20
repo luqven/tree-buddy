@@ -42,6 +42,7 @@ const api: TreeBuddyAPI = {
     ipcRenderer.on('state-update', handler);
     return () => ipcRenderer.removeListener('state-update', handler);
   },
+  deleteWorktree: (path) => ipcRenderer.invoke('delete-worktree', path),
 };
 
 contextBridge.exposeInMainWorld('treeBuddy', api);

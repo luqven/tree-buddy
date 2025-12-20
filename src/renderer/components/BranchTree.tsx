@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CaretRight } from '@phosphor-icons/react';
+import { CaretRight, Broom } from '@phosphor-icons/react';
 import { StatusDot } from './StatusDot';
 import { useAppState } from '../hooks/useAppState';
 import { buildTree } from '@services/scope';
@@ -115,6 +115,24 @@ function BranchItem({ branch, onOpen }: BranchItemProps) {
     >
       <StatusDot status={status} />
       <span className="flex-1 text-sm truncate">{branch.name}</span>
+      {branch.merged ? (
+        <button
+          className="ml-2 inline-flex items-center justify-center w-5 h-5 text-muted-foreground hover:text-primary"
+          onClick={(e) => {
+            e.stopPropagation();
+            // Defer deletion to API via window.treeBuddy
+            // The actual deletion hook will be wired in a higher layer
+            // We'll call a global function (exists on window.treeBuddy)
+            // @ts-ignore
+            window.treeBuddy?.deleteWorktree?.(branch.path);
+          }}
+          title="Delete merged worktree"
+        >
+          <Broom size={14} />
+        </button>
+      ) : (
+        <span className="ml-2 w-5" aria-label="merged-slot" />
+      )}
       <span className="text-xs text-muted-foreground">{ago}</span>
     </div>
   );

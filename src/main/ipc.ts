@@ -60,9 +60,21 @@ async function refreshAllAsync(): Promise<void> {
   }
 }
 
+// Expose a test hook to simulate deletion of a worktree (for tests only)
+export async function deleteWorktreePathForTest(worktreePath: string): Promise<boolean> {
+  try {
+    const { execSync } = require('child_process');
+    const root = execSync(`git -C "${worktreePath}" rev-parse --show-toplevel`).toString().trim();
+    execSync(`git -C "${root}" worktree remove "${worktreePath}"`, { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Send state update to renderer
- */
+  */
 function notifyRenderer() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('state-update', {
