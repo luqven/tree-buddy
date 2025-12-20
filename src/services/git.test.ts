@@ -7,8 +7,12 @@ import {
   isBareRepo,
   isWorktreeRoot,
   listWorktrees,
+  listWorktreesAsync,
   getStatus,
+  getStatusAsync,
   scanForWorktrees,
+  scanForWorktreesAsync,
+  refreshStatusesAsync,
 } from './git';
 
 describe('git service', () => {
@@ -107,6 +111,59 @@ describe('git service', () => {
 
     it('respects max depth', () => {
       const found = scanForWorktrees(tmp, 0);
+      expect(found.length).toBe(0);
+    });
+  });
+
+  // Async versions
+  describe('listWorktreesAsync', () => {
+    it('lists all worktrees from main repo', async () => {
+      const wts = await listWorktreesAsync(wt1);
+      expect(wts.length).toBe(2);
+      const names = wts.map((w) => w.name).sort();
+      expect(names).toContain('main');
+      expect(names).toContain('feature');
+    });
+  });
+
+  describe('getStatusAsync', () => {
+    it('returns clean status for unchanged repo', async () => {
+      const s = await getStatusAsync(wt1);
+      expect(s.dirty).toBe(false);
+      expect(s.ts).toBeGreaterThan(0);
+    });
+
+    it('returns dirty when file modified', async () => {
+      writeFileSync(join(wt2, 'new2.txt'), 'new content');
+      const s = await getStatusAsync(wt2);
+      expect(s.dirty).toBe(true);
+      // cleanup
+      execSync('git checkout .', { cwd: wt2 });
+      rmSync(join(wt2, 'new2.txt'), { force: true });
+    });
+  });
+
+  describe('refreshStatusesAsync', () => {
+    it('refreshes all branch statuses in parallel', async () => {
+      const branches = await listWorktreesAsync(wt1);
+      const refreshed = await refreshStatusesAsync(branches);
+      expect(refreshed.length).toBe(2);
+      for (const b of refreshed) {
+        expect(b.status.ts).toBeGreaterThan(0);
+      }
+    });
+  });
+
+  describe('scanForWorktreesAsync', () => {
+    it('finds worktree projects in directory', async () => {
+      const found = await scanForWorktreesAsync(tmp, 2);
+      expect(found.length).toBeGreaterThanOrEqual(1);
+      const paths = found.map((f) => f.path);
+      expect(paths).toContain(wt1);
+    });
+
+    it('respects max depth', async () => {
+      const found = await scanForWorktreesAsync(tmp, 0);
       expect(found.length).toBe(0);
     });
   });

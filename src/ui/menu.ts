@@ -13,6 +13,7 @@ const STATUS_ICON: Record<SyncStatus, string> = {
 
 interface MenuCtx {
   cfg: Config;
+  isRefreshing: boolean;
   onAddProject: () => void;
   onRemoveProject: (id: string) => void;
   onRefresh: () => void;
@@ -68,6 +69,19 @@ function mkScopeMenu(nodes: ScopeNode[], ctx: MenuCtx): MenuItem[] {
 }
 
 /**
+ * Get project label with status indicator
+ */
+function getProjectLabel(proj: Project, isRefreshing: boolean): string {
+  if (isRefreshing && proj.status === 'refreshing') {
+    return `${proj.name} …`;
+  }
+  if (proj.status === 'error') {
+    return `⚠️ ${proj.name}`;
+  }
+  return proj.name;
+}
+
+/**
  * Build project submenu
  */
 function mkProjectMenu(proj: Project, ctx: MenuCtx): MenuItem {
@@ -93,7 +107,7 @@ function mkProjectMenu(proj: Project, ctx: MenuCtx): MenuItem {
   );
 
   return new MenuItem({
-    label: proj.name,
+    label: getProjectLabel(proj, ctx.isRefreshing),
     submenu: Menu.buildFromTemplate(items),
   });
 }
@@ -129,7 +143,8 @@ export function buildMenu(ctx: MenuCtx): Menu {
   );
   items.push(
     new MenuItem({
-      label: 'Refresh All',
+      label: ctx.isRefreshing ? 'Refreshing…' : 'Refresh All',
+      enabled: !ctx.isRefreshing,
       click: ctx.onRefresh,
     })
   );

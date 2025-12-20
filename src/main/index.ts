@@ -2,44 +2,67 @@ import { app, Tray, shell, nativeImage } from 'electron';
 import { join } from 'path';
 import { homedir } from 'os';
 import { Config, Project } from '../core/types';
-import { scanForWorktrees, listWorktrees, refreshStatuses } from '../services/git';
+import {
+  listWorktreesAsync,
+  refreshStatusesAsync,
+  scanForWorktreesAsync,
+} from '../services/git';
 import { load, save, addProject, rmProject, updateProject } from '../services/store';
+import { loadScanCache, saveScanCache, isCacheStale } from '../services/cache';
 import { buildMenu, showDiscoveryDialog, showNameDialog } from '../ui/menu';
 
 const DOCS_PATH = join(homedir(), 'Documents');
+const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
 
 let tray: Tray | null = null;
 let cfg: Config;
+let isRefreshing = false;
 
 /**
- * Refresh branch statuses for all projects
+ * Refresh all project statuses (async, non-blocking)
  */
-function refreshAll(): void {
-  cfg = {
-    ...cfg,
-    projects: cfg.projects.map((p) => ({
-      ...p,
-      branches: refreshStatuses(p.branches),
-    })),
-  };
-  save(cfg);
-  updateMenu();
+async function refreshAllAsync(): Promise<void> {
+  if (isRefreshing) return;
+  isRefreshing = true;
+  updateMenu(); // Show "..." indicator
+
+  try {
+    const updated = await Promise.all(
+      cfg.projects.map(async (p) => {
+        try {
+          const branches = await listWorktreesAsync(p.root);
+          const refreshed = await refreshStatusesAsync(branches);
+          return { ...p, branches: refreshed, status: 'ok' as const };
+        } catch {
+          return { ...p, status: 'error' as const };
+        }
+      })
+    );
+    cfg = { ...cfg, projects: updated };
+    save(cfg);
+  } finally {
+    isRefreshing = false;
+    updateMenu();
+  }
 }
 
 /**
- * Refresh single project branches
+ * Refresh single project (async)
  */
-function refreshProject(id: string): void {
+async function refreshProjectAsync(id: string): Promise<void> {
   const proj = cfg.projects.find((p) => p.id === id);
   if (!proj) return;
 
-  const branches = listWorktrees(proj.root);
-  const updated: Project = {
-    ...proj,
-    branches: refreshStatuses(branches),
-  };
+  try {
+    const branches = await listWorktreesAsync(proj.root);
+    const refreshed = await refreshStatusesAsync(branches);
+    const updated: Project = { ...proj, branches: refreshed, status: 'ok' };
+    cfg = updateProject(cfg, updated);
+  } catch {
+    const updated: Project = { ...proj, status: 'error' };
+    cfg = updateProject(cfg, updated);
+  }
 
-  cfg = updateProject(cfg, updated);
   save(cfg);
   updateMenu();
 }
@@ -48,9 +71,19 @@ function refreshProject(id: string): void {
  * Handle add project action
  */
 async function handleAddProject(): Promise<void> {
-  // Scan for worktree candidates
-  const candidates = scanForWorktrees(DOCS_PATH, 3);
-  const filtered = candidates.filter((c) => !cfg.projects.some((p) => p.root === c.path));
+  // Use cached scan or refresh if stale
+  let cache = loadScanCache();
+
+  if (!cache || isCacheStale(cache, REFRESH_INTERVAL)) {
+    // Scan in background
+    const candidates = await scanForWorktreesAsync(DOCS_PATH, 3);
+    cache = { ts: Date.now(), candidates };
+    saveScanCache(cache);
+  }
+
+  const filtered = cache.candidates.filter(
+    (c) => !cfg.projects.some((p) => p.root === c.path)
+  );
 
   const path = await showDiscoveryDialog(filtered);
   if (!path) return;
@@ -60,9 +93,11 @@ async function handleAddProject(): Promise<void> {
   if (!name) return;
 
   cfg = addProject(cfg, { path, name });
+  save(cfg);
+
   // Refresh statuses for new project
   const newProj = cfg.projects[cfg.projects.length - 1];
-  refreshProject(newProj.id);
+  await refreshProjectAsync(newProj.id);
 }
 
 /**
@@ -75,7 +110,7 @@ function handleRemoveProject(id: string): void {
 }
 
 /**
- * Open path in terminal or finder
+ * Open path in finder/terminal
  */
 function handleOpenPath(path: string): void {
   shell.openPath(path);
@@ -89,9 +124,10 @@ function updateMenu(): void {
 
   const menu = buildMenu({
     cfg,
+    isRefreshing,
     onAddProject: handleAddProject,
     onRemoveProject: handleRemoveProject,
-    onRefresh: refreshAll,
+    onRefresh: refreshAllAsync,
     onOpenPath: handleOpenPath,
     onQuit: () => app.quit(),
   });
@@ -103,27 +139,40 @@ function updateMenu(): void {
  * Initialize the app
  */
 function init(): void {
-  // Load config
+  // Load cached config immediately
   cfg = load();
 
-  // Create tray with native image
+  // Create tray
   const iconPath = join(app.getAppPath(), 'assets', 'tray-iconTemplate.png');
   const icon = nativeImage.createFromPath(iconPath);
-  // If icon fails to load, create empty 16x16 image
-  const trayIcon = icon.isEmpty()
-    ? nativeImage.createEmpty().resize({ width: 16, height: 16 })
-    : icon;
+
+  let trayIcon: Electron.NativeImage;
+  if (icon.isEmpty()) {
+    const size = 16;
+    const canvas = Buffer.alloc(size * size * 4);
+    for (let i = 0; i < size * size; i++) {
+      canvas[i * 4] = 100;
+      canvas[i * 4 + 1] = 100;
+      canvas[i * 4 + 2] = 100;
+      canvas[i * 4 + 3] = 255;
+    }
+    trayIcon = nativeImage.createFromBuffer(canvas, { width: size, height: size });
+  } else {
+    trayIcon = icon;
+  }
+
   trayIcon.setTemplateImage(true);
   tray = new Tray(trayIcon);
   tray.setToolTip('Tree Buddy');
 
-  // Initial menu
+  // Show cached menu immediately
   updateMenu();
 
-  // Refresh statuses on click (future: auto-refresh)
-  tray.on('click', () => {
-    refreshAll();
-  });
+  // Start background refresh interval
+  setInterval(refreshAllAsync, REFRESH_INTERVAL);
+
+  // Initial async refresh (non-blocking)
+  refreshAllAsync();
 }
 
 // Hide dock icon on macOS
@@ -132,6 +181,5 @@ app.dock?.hide();
 app.whenReady().then(init);
 
 app.on('window-all-closed', (e: Event) => {
-  // Prevent default quit behavior
   e.preventDefault();
 });

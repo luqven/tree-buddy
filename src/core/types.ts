@@ -39,6 +39,7 @@ export interface Project {
   name: string;
   root: string; // bare repo or main worktree path
   branches: Branch[];
+  status?: ProjectStatus;
 }
 
 /**
@@ -58,6 +59,19 @@ export interface WorktreeCandidate {
   name: string;
   branchCount: number;
 }
+
+/**
+ * Cached scan results (stored separately for scalability)
+ */
+export interface ScanCache {
+  ts: number;
+  candidates: WorktreeCandidate[];
+}
+
+/**
+ * Project status for error tracking
+ */
+export type ProjectStatus = 'ok' | 'error' | 'refreshing';
 
 /**
  * Convert GitStatus to stoplight color
