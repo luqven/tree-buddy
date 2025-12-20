@@ -1,146 +1,93 @@
-import { app, Tray, shell, nativeImage } from 'electron';
+import { app, Tray, BrowserWindow, nativeImage, screen } from 'electron';
 import { join } from 'path';
-import { homedir } from 'os';
-import { Config, Project } from '../core/types';
-import {
-  listWorktreesAsync,
-  refreshStatusesAsync,
-  scanForWorktreesAsync,
-} from '../services/git';
-import { load, save, addProject, rmProject, updateProject } from '../services/store';
-import { loadScanCache, saveScanCache, isCacheStale } from '../services/cache';
-import { buildMenu, showDiscoveryDialog, showNameDialog } from '../ui/menu';
+import { initIpc, setMainWindow } from './ipc';
 
-const DOCS_PATH = join(homedir(), 'Documents');
-const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+const WINDOW_WIDTH = 320;
+const WINDOW_HEIGHT = 480;
 
 let tray: Tray | null = null;
-let cfg: Config;
-let isRefreshing = false;
+let mainWindow: BrowserWindow | null = null;
 
 /**
- * Refresh all project statuses (async, non-blocking)
+ * Create the popup window
  */
-async function refreshAllAsync(): Promise<void> {
-  if (isRefreshing) return;
-  isRefreshing = true;
-  updateMenu(); // Show "..." indicator
+function createWindow(): BrowserWindow {
+  const preloadPath = join(__dirname, 'preload.js');
 
-  try {
-    const updated = await Promise.all(
-      cfg.projects.map(async (p) => {
-        try {
-          const branches = await listWorktreesAsync(p.root);
-          const refreshed = await refreshStatusesAsync(branches);
-          return { ...p, branches: refreshed, status: 'ok' as const };
-        } catch {
-          return { ...p, status: 'error' as const };
-        }
-      })
-    );
-    cfg = { ...cfg, projects: updated };
-    save(cfg);
-  } finally {
-    isRefreshing = false;
-    updateMenu();
-  }
-}
-
-/**
- * Refresh single project (async)
- */
-async function refreshProjectAsync(id: string): Promise<void> {
-  const proj = cfg.projects.find((p) => p.id === id);
-  if (!proj) return;
-
-  try {
-    const branches = await listWorktreesAsync(proj.root);
-    const refreshed = await refreshStatusesAsync(branches);
-    const updated: Project = { ...proj, branches: refreshed, status: 'ok' };
-    cfg = updateProject(cfg, updated);
-  } catch {
-    const updated: Project = { ...proj, status: 'error' };
-    cfg = updateProject(cfg, updated);
-  }
-
-  save(cfg);
-  updateMenu();
-}
-
-/**
- * Handle add project action
- */
-async function handleAddProject(): Promise<void> {
-  // Use cached scan or refresh if stale
-  let cache = loadScanCache();
-
-  if (!cache || isCacheStale(cache, REFRESH_INTERVAL)) {
-    // Scan in background
-    const candidates = await scanForWorktreesAsync(DOCS_PATH, 3);
-    cache = { ts: Date.now(), candidates };
-    saveScanCache(cache);
-  }
-
-  const filtered = cache.candidates.filter(
-    (c) => !cfg.projects.some((p) => p.root === c.path)
-  );
-
-  const path = await showDiscoveryDialog(filtered);
-  if (!path) return;
-
-  const defaultName = path.split('/').pop() || 'project';
-  const name = await showNameDialog(defaultName);
-  if (!name) return;
-
-  cfg = addProject(cfg, { path, name });
-  save(cfg);
-
-  // Refresh statuses for new project
-  const newProj = cfg.projects[cfg.projects.length - 1];
-  await refreshProjectAsync(newProj.id);
-}
-
-/**
- * Handle remove project action
- */
-function handleRemoveProject(id: string): void {
-  cfg = rmProject(cfg, id);
-  save(cfg);
-  updateMenu();
-}
-
-/**
- * Open path in finder/terminal
- */
-function handleOpenPath(path: string): void {
-  shell.openPath(path);
-}
-
-/**
- * Update tray menu
- */
-function updateMenu(): void {
-  if (!tray) return;
-
-  const menu = buildMenu({
-    cfg,
-    isRefreshing,
-    onAddProject: handleAddProject,
-    onRemoveProject: handleRemoveProject,
-    onRefresh: refreshAllAsync,
-    onOpenPath: handleOpenPath,
-    onQuit: () => app.quit(),
+  const win = new BrowserWindow({
+    width: WINDOW_WIDTH,
+    height: WINDOW_HEIGHT,
+    show: false,
+    frame: false,
+    resizable: false,
+    skipTaskbar: true,
+    alwaysOnTop: true,
+    webPreferences: {
+      preload: preloadPath,
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
   });
 
-  tray.setContextMenu(menu);
+  // Load the renderer from built files
+  const rendererPath = join(__dirname, '../renderer/index.html');
+  win.loadFile(rendererPath);
+
+  // Hide when focus is lost
+  win.on('blur', () => {
+    win.hide();
+  });
+
+  return win;
+}
+
+/**
+ * Position window below tray icon
+ */
+function positionWindow(win: BrowserWindow, trayBounds: Electron.Rectangle) {
+  const display = screen.getDisplayNearestPoint({
+    x: trayBounds.x,
+    y: trayBounds.y,
+  });
+
+  const x = Math.round(
+    trayBounds.x + trayBounds.width / 2 - WINDOW_WIDTH / 2
+  );
+
+  // Position below tray on macOS (tray is at top)
+  const y = trayBounds.y + trayBounds.height + 4;
+
+  // Ensure window stays within screen bounds
+  const maxX = display.bounds.x + display.bounds.width - WINDOW_WIDTH;
+  const boundedX = Math.max(display.bounds.x, Math.min(x, maxX));
+
+  win.setPosition(boundedX, y);
+}
+
+/**
+ * Toggle window visibility
+ */
+function toggleWindow() {
+  if (!mainWindow) return;
+
+  if (mainWindow.isVisible()) {
+    mainWindow.hide();
+  } else {
+    const trayBounds = tray?.getBounds();
+    if (trayBounds) {
+      positionWindow(mainWindow, trayBounds);
+    }
+    mainWindow.show();
+    mainWindow.focus();
+  }
 }
 
 /**
  * Initialize the app
  */
 function init(): void {
-  // Load cached config immediately
-  cfg = load();
+  // Initialize IPC handlers
+  initIpc();
 
   // Create tray
   const iconPath = join(app.getAppPath(), 'assets', 'tray-iconTemplate.png');
@@ -165,14 +112,19 @@ function init(): void {
   tray = new Tray(trayIcon);
   tray.setToolTip('Tree Buddy');
 
-  // Show cached menu immediately
-  updateMenu();
+  // Create window
+  mainWindow = createWindow();
+  setMainWindow(mainWindow);
 
-  // Start background refresh interval
-  setInterval(refreshAllAsync, REFRESH_INTERVAL);
+  // Handle tray click
+  tray.on('click', () => {
+    toggleWindow();
+  });
 
-  // Initial async refresh (non-blocking)
-  refreshAllAsync();
+  // Handle right-click (same as left-click for consistency)
+  tray.on('right-click', () => {
+    toggleWindow();
+  });
 }
 
 // Hide dock icon on macOS

@@ -1,0 +1,105 @@
+import { useState, useEffect, useCallback } from 'react';
+import type { Config, Project, WorktreeCandidate } from '@core/types';
+
+interface AppState {
+  cfg: Config;
+  isRefreshing: boolean;
+}
+
+const defaultState: AppState = {
+  cfg: {
+    scopeDelim: '/',
+    scopeEnabled: true,
+    projects: [],
+  },
+  isRefreshing: false,
+};
+
+export function useAppState() {
+  const [state, setState] = useState<AppState>(defaultState);
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [candidates, setCandidates] = useState<WorktreeCandidate[]>([]);
+
+  // Load initial state and subscribe to updates
+  useEffect(() => {
+    const api = window.treeBuddy;
+    if (!api) return;
+
+    // Get initial state
+    api.getState().then(setState);
+
+    // Subscribe to updates
+    const unsubscribe = api.onStateUpdate(setState);
+    return unsubscribe;
+  }, []);
+
+  const refreshAll = useCallback(async () => {
+    await window.treeBuddy?.refreshAll();
+  }, []);
+
+  const refreshProject = useCallback(async (id: string) => {
+    await window.treeBuddy?.refreshProject(id);
+  }, []);
+
+  const addProject = useCallback(async () => {
+    const result = await window.treeBuddy?.getCandidates();
+    if (result) {
+      setCandidates(result);
+      setShowAddDialog(true);
+    }
+  }, []);
+
+  const confirmAddProject = useCallback(async (path: string, name: string) => {
+    await window.treeBuddy?.confirmAddProject(path, name);
+    setShowAddDialog(false);
+    setCandidates([]);
+  }, []);
+
+  const cancelAddProject = useCallback(() => {
+    setShowAddDialog(false);
+    setCandidates([]);
+  }, []);
+
+  const pickDirectory = useCallback(async () => {
+    return await window.treeBuddy?.pickDirectory() ?? null;
+  }, []);
+
+  const removeProject = useCallback(async (id: string) => {
+    await window.treeBuddy?.removeProject(id);
+  }, []);
+
+  const openPath = useCallback(async (path: string) => {
+    await window.treeBuddy?.openPath(path);
+  }, []);
+
+  const showInFolder = useCallback(async (path: string) => {
+    await window.treeBuddy?.showInFolder(path);
+  }, []);
+
+  const updateConfig = useCallback(async (updates: Partial<Config>) => {
+    await window.treeBuddy?.updateConfig(updates);
+  }, []);
+
+  const quit = useCallback(async () => {
+    await window.treeBuddy?.quit();
+  }, []);
+
+  return {
+    cfg: state.cfg,
+    projects: state.cfg.projects,
+    isRefreshing: state.isRefreshing,
+    showAddDialog,
+    candidates,
+    refreshAll,
+    refreshProject,
+    addProject,
+    confirmAddProject,
+    cancelAddProject,
+    pickDirectory,
+    removeProject,
+    openPath,
+    showInFolder,
+    updateConfig,
+    quit,
+  };
+}
