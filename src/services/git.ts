@@ -267,15 +267,24 @@ export function refreshStatuses(branches: Branch[]): Branch[] {
 }
 
 /**
- * Refresh status for all branches in parallel (async)
+ * Refresh status for all branches in parallel with limited concurrency (async)
  */
 export async function refreshStatusesAsync(branches: Branch[]): Promise<Branch[]> {
-  return Promise.all(
-    branches.map(async (b) => ({
-      ...b,
-      status: await getStatusAsync(b.path),
-    }))
-  );
+  const batchSize = 5;
+  const results: Branch[] = [];
+
+  for (let i = 0; i < branches.length; i += batchSize) {
+    const chunk = branches.slice(i, i + batchSize);
+    const chunkResults = await Promise.all(
+      chunk.map(async (b) => ({
+        ...b,
+        status: await getStatusAsync(b.path),
+      }))
+    );
+    results.push(...chunkResults);
+  }
+
+  return results;
 }
 
 /**

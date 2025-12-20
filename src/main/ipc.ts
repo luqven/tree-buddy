@@ -144,47 +144,46 @@ async function refreshAllAsync(): Promise<void> {
   lastRefreshTs = Date.now();
   notifyRenderer();
   try {
-    const updated = await Promise.all(
-      cfg.projects.map(async (p) => {
-        try {
-          const branches = await listWorktreesAsync(p.root);
-          const refreshed = await refreshStatusesAsync(branches);
+    const updated: Project[] = [];
+    for (const p of cfg.projects) {
+      try {
+        const branches = await listWorktreesAsync(p.root);
+        const refreshed = await refreshStatusesAsync(branches);
 
-          // Get main branch and merged branches for this project
-          const mainBranch = await getMainBranchAsync(p.root);
-          const mergedBranchNames = await getMergedBranchesAsync(p.root, mainBranch);
+        // Get main branch and merged branches for this project
+        const mainBranch = await getMainBranchAsync(p.root);
+        const mergedBranchNames = await getMergedBranchesAsync(p.root, mainBranch);
 
-          // Enhance branches with merged and cleanup status
-          const enhancedBranches = refreshed.map((br) => {
-            const isMerged = mergedBranchNames.includes(br.name);
-            const hasUncommitted = br.status.dirty;
+        // Enhance branches with merged and cleanup status
+        const enhancedBranches = refreshed.map((br) => {
+          const isMerged = mergedBranchNames.includes(br.name);
+          const hasUncommitted = br.status.dirty;
 
-            // Determine cleanup icon
-            let showCleanupIcon = false;
-            let cleanupIconType: 'broom' | 'pencil' | null = null;
+          // Determine cleanup icon
+          let showCleanupIcon = false;
+          let cleanupIconType: 'broom' | 'pencil' | null = null;
 
-            // Don't show cleanup for main worktree or locked worktrees
-            if (isMerged && !br.locked && !br.isMain) {
-              showCleanupIcon = true;
-              cleanupIconType = hasUncommitted ? 'pencil' : 'broom';
-            }
+          // Don't show cleanup for main worktree or locked worktrees
+          if (isMerged && !br.locked && !br.isMain) {
+            showCleanupIcon = true;
+            cleanupIconType = hasUncommitted ? 'pencil' : 'broom';
+          }
 
-            return {
-              ...br,
-              merged: isMerged,
-              isCurrent: br.isMain, // Highlight the main worktree
-              hasUncommitted,
-              showCleanupIcon,
-              cleanupIconType,
-            };
-          });
+          return {
+            ...br,
+            merged: isMerged,
+            isCurrent: br.isMain, // Highlight the main worktree
+            hasUncommitted,
+            showCleanupIcon,
+            cleanupIconType,
+          };
+        });
 
-          return { ...p, branches: enhancedBranches, status: 'ok' as const, lastUpdated: Date.now() };
-        } catch {
-          return { ...p, status: 'error' as const, lastUpdated: Date.now() };
-        }
-      })
-    );
+        updated.push({ ...p, branches: enhancedBranches, status: 'ok' as const, lastUpdated: Date.now() });
+      } catch {
+        updated.push({ ...p, status: 'error' as const, lastUpdated: Date.now() });
+      }
+    }
     cfg = { ...cfg, projects: updated };
     save(cfg);
   } finally {
