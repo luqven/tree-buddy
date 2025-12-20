@@ -19,6 +19,9 @@ export interface TreeBuddyAPI {
   pickDirectory: () => Promise<string | null>;
   confirmAddProject: (path: string, name: string) => Promise<Project>;
   quit: () => Promise<void>;
+  deleteWorktree: (path: string) => Promise<boolean>;
+  lockWorktree: (path: string) => Promise<void>;
+  unlockWorktree: (path: string) => Promise<void>;
   windowShown: () => Promise<void>;
   onStateUpdate: (cb: (state: AppState) => void) => () => void;
 }
@@ -36,13 +39,15 @@ const api: TreeBuddyAPI = {
   pickDirectory: () => ipcRenderer.invoke('pick-directory'),
   confirmAddProject: (path, name) => ipcRenderer.invoke('confirm-add-project', path, name),
   quit: () => ipcRenderer.invoke('quit'),
+  deleteWorktree: (path) => ipcRenderer.invoke('delete-worktree', path),
+  lockWorktree: (path) => ipcRenderer.invoke('lock-worktree', path),
+  unlockWorktree: (path) => ipcRenderer.invoke('unlock-worktree', path),
   windowShown: () => ipcRenderer.invoke('window-shown'),
   onStateUpdate: (cb) => {
     const handler = (_e: Electron.IpcRendererEvent, state: AppState) => cb(state);
     ipcRenderer.on('state-update', handler);
     return () => ipcRenderer.removeListener('state-update', handler);
   },
-  deleteWorktree: (path) => ipcRenderer.invoke('delete-worktree', path),
 };
 
 contextBridge.exposeInMainWorld('treeBuddy', api);

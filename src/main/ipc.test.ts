@@ -7,8 +7,6 @@ vi.mock('child_process', () => ({
 }));
 
 describe('deleteWorktreeAtPath', () => {
-  const cp = require('child_process');
-
   it('returns true in test env', async () => {
     // simulate environment in test mode
     process.env.NODE_ENV = 'test';
@@ -18,9 +16,9 @@ describe('deleteWorktreeAtPath', () => {
 
   it('would attempt deletion when not in test mode', async () => {
     process.env.NODE_ENV = 'production';
-    (cp.execSync as any).mockImplementation(() => '/path/to/root');
-    const res = await deleteWorktreeAtPath('/path/to/worktree');
-    // In non-test mode, the function would attempt actual deletion; for safety, treat as boolean
-    expect(typeof res).toBe('boolean');
+    const res = await deleteWorktreeAtPath('/path/to/nonexistent/worktree');
+    // In non-test mode, the function attempts actual deletion
+    // Since the path doesn't exist, it should return false
+    expect(res).toBe(false);
   });
 });

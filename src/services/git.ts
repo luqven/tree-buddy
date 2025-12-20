@@ -280,7 +280,7 @@ export async function listWorktreesAsync(root: string): Promise<Branch[]> {
   if (!out) return [];
 
   const branches: Branch[] = [];
-  let cur: Partial<Branch> = {};
+  let cur: Partial<Branch & { locked?: boolean }> = {};
 
   for (const line of out.split('\n')) {
     if (line.startsWith('worktree ')) {
@@ -288,12 +288,16 @@ export async function listWorktreesAsync(root: string): Promise<Branch[]> {
     } else if (line.startsWith('branch ')) {
       const ref = line.slice(7);
       cur.name = ref.replace('refs/heads/', '');
+    } else if (line === 'locked') {
+      cur.locked = true;
     } else if (line === '') {
       if (cur.path && cur.name) {
         branches.push({
           name: cur.name,
           path: cur.path,
           status: { ahead: 0, behind: 0, dirty: false, ts: 0 },
+          locked: cur.locked || false,
+          isMain: branches.length === 0,
         });
       }
       cur = {};
@@ -306,10 +310,111 @@ export async function listWorktreesAsync(root: string): Promise<Branch[]> {
       name: cur.name,
       path: cur.path,
       status: { ahead: 0, behind: 0, dirty: false, ts: 0 },
+      locked: cur.locked || false,
+      isMain: branches.length === 0,
     });
   }
 
   return branches;
+}
+
+/**
+ * Get the main branch name for a repository
+ */
+export async function getMainBranchAsync(repoRoot: string): Promise<string> {
+  // Try origin/HEAD first
+  try {
+    const remoteHead = git('rev-parse --abbrev-ref origin/HEAD', { cwd: repoRoot });
+    if (remoteHead && remoteHead !== 'origin/HEAD') {
+      return remoteHead.replace('origin/', '');
+    }
+  } catch {
+    // Ignore
+  }
+
+  // Fallback to common names
+  const candidates = ['main', 'master', 'develop'];
+  for (const branch of candidates) {
+    try {
+      const exists = git(`show-ref --verify refs/heads/${branch}`, { cwd: repoRoot });
+      if (exists) return branch;
+    } catch {
+      // Branch doesn't exist, try next
+    }
+  }
+
+  // Final fallback: current branch of the main repo
+  try {
+    return git('rev-parse --abbrev-ref HEAD', { cwd: repoRoot });
+  } catch {
+    return 'main';
+  }
+}
+
+/**
+ * Get branches that are merged into the specified branch
+ */
+export async function getMergedBranchesAsync(repoRoot: string, mainBranch: string): Promise<string[]> {
+  try {
+    const output = git(`branch --merged ${mainBranch}`, { cwd: repoRoot });
+    return output
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line && !line.startsWith('*') && line !== mainBranch);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Get the current branch checked out in a worktree
+ */
+export async function getCurrentBranchAsync(worktreePath: string): Promise<string> {
+  try {
+    return git('rev-parse --abbrev-ref HEAD', { cwd: worktreePath });
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Check if a worktree has uncommitted changes
+ */
+export async function hasUncommittedChangesAsync(worktreePath: string): Promise<boolean> {
+  try {
+    const output = git('status --porcelain', { cwd: worktreePath });
+    return output.trim().length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Lock a worktree
+ */
+export async function lockWorktreeAsync(worktreePath: string): Promise<void> {
+  await gitAsync(`worktree lock "${worktreePath}"`, { cwd: worktreePath });
+}
+
+/**
+ * Unlock a worktree
+ */
+export async function unlockWorktreeAsync(worktreePath: string): Promise<void> {
+  await gitAsync(`worktree unlock "${worktreePath}"`, { cwd: worktreePath });
+}
+
+/**
+ * Remove a worktree
+ */
+export async function removeWorktreeAsync(repoRoot: string, worktreePath: string): Promise<void> {
+  await gitAsync(`worktree remove "${worktreePath}"`, { cwd: repoRoot });
+}
+
+/**
+ * Get the toplevel path of a repository
+ */
+export async function getRepoRootAsync(path: string): Promise<string> {
+  return await gitAsync('rev-parse --show-toplevel', { cwd: path });
 }
 
 /**

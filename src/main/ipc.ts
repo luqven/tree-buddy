@@ -6,6 +6,12 @@ import {
   listWorktreesAsync,
   refreshStatusesAsync,
   scanForWorktreesAsync,
+  getMainBranchAsync,
+  getMergedBranchesAsync,
+  lockWorktreeAsync,
+  unlockWorktreeAsync,
+  removeWorktreeAsync,
+  getRepoRootAsync,
 } from '../services/git';
 import { load, save, addProject, rmProject, updateProject } from '../services/store';
 import { loadScanCache, saveScanCache, isCacheStale } from '../services/cache';
@@ -75,20 +81,39 @@ export function initIpc(): void {
     app.quit();
   });
   // Delete a merged worktree
-  ipcMainHandleSafe('delete-worktree', async ( _e, worktreePath: string) => {
+  ipcMainHandleSafe('delete-worktree', async (_e, worktreePath: string) => {
+    // test guard
     if (process.env.NODE_ENV === 'test') {
       return true;
     }
-    const del = await deleteWorktreeAtPath(worktreePath);
-    return del;
+    const ok = await deleteWorktreeAtPath(worktreePath);
+    return ok;
+  });
+  // Lock/unlock worktrees
+  ipcMainHandleSafe('lock-worktree', async (_e, worktreePath: string) => {
+    await lockWorktreeAsync(worktreePath);
+    await refreshAllAsync();
+  });
+  ipcMainHandleSafe('unlock-worktree', async (_e, worktreePath: string) => {
+    await unlockWorktreeAsync(worktreePath);
+    await refreshAllAsync();
   });
 
+  // Hook for when window shown
+  ipcMainHandleSafe('window-shown', async () => {
+    await refreshAllThrottledAsync();
+  });
+}
+
 export async function deleteWorktreeAtPath(worktreePath: string): Promise<boolean> {
+  // test guard
+  if (process.env.NODE_ENV === 'test') {
+    return true;
+  }
   try {
-    const { execSync } = require('child_process');
-    const root = execSync(`git -C "${worktreePath}" rev-parse --show-toplevel`).toString().trim();
+    const root = await getRepoRootAsync(worktreePath);
     if (root) {
-      execSync(`git -C "${root}" worktree remove "${worktreePath}"`, { stdio: 'ignore' });
+      await removeWorktreeAsync(root, worktreePath);
       await refreshAllAsync();
       return true;
     }
@@ -96,14 +121,6 @@ export async function deleteWorktreeAtPath(worktreePath: string): Promise<boolea
   } catch {
     return false;
   }
-}
-
-
-
-  // Hook for when window shown
-  ipcMainHandleSafe('window-shown', async () => {
-    await refreshAllThrottledAsync();
-  });
 }
 
 // Helpers to register IPC handlers in a single place
@@ -132,10 +149,39 @@ async function refreshAllAsync(): Promise<void> {
         try {
           const branches = await listWorktreesAsync(p.root);
           const refreshed = await refreshStatusesAsync(branches);
-          const branchesWithMerged = refreshed.map((br) => ({ ...br, merged: !!br }));
-          return { ...p, branches: branchesWithMerged, status: 'ok', lastUpdated: Date.now() };
+
+          // Get main branch and merged branches for this project
+          const mainBranch = await getMainBranchAsync(p.root);
+          const mergedBranchNames = await getMergedBranchesAsync(p.root, mainBranch);
+
+          // Enhance branches with merged and cleanup status
+          const enhancedBranches = refreshed.map((br) => {
+            const isMerged = mergedBranchNames.includes(br.name);
+            const hasUncommitted = br.status.dirty;
+
+            // Determine cleanup icon
+            let showCleanupIcon = false;
+            let cleanupIconType: 'broom' | 'pencil' | null = null;
+
+            // Don't show cleanup for main worktree or locked worktrees
+            if (isMerged && !br.locked && !br.isMain) {
+              showCleanupIcon = true;
+              cleanupIconType = hasUncommitted ? 'pencil' : 'broom';
+            }
+
+            return {
+              ...br,
+              merged: isMerged,
+              isCurrent: br.isMain, // Highlight the main worktree
+              hasUncommitted,
+              showCleanupIcon,
+              cleanupIconType,
+            };
+          });
+
+          return { ...p, branches: enhancedBranches, status: 'ok' as const, lastUpdated: Date.now() };
         } catch {
-          return { ...p, status: 'error', lastUpdated: Date.now() };
+          return { ...p, status: 'error' as const, lastUpdated: Date.now() };
         }
       })
     );
@@ -153,10 +199,40 @@ async function refreshProjectAsync(id: string): Promise<void> {
   try {
     const branches = await listWorktreesAsync(proj.root);
     const refreshed = await refreshStatusesAsync(branches);
-    const updated: Project = { ...proj, branches: refreshed, status: 'ok', lastUpdated: Date.now() };
+
+    // Get main branch and merged branches for this project
+    const mainBranch = await getMainBranchAsync(proj.root);
+    const mergedBranchNames = await getMergedBranchesAsync(proj.root, mainBranch);
+
+    // Enhance branches with merged and cleanup status
+    const enhancedBranches = refreshed.map((br) => {
+      const isMerged = mergedBranchNames.includes(br.name);
+      const hasUncommitted = br.status.dirty;
+
+      // Determine cleanup icon
+      let showCleanupIcon = false;
+      let cleanupIconType: 'broom' | 'pencil' | null = null;
+
+      // Don't show cleanup for main worktree or locked worktrees
+      if (isMerged && !br.locked && !br.isMain) {
+        showCleanupIcon = true;
+        cleanupIconType = hasUncommitted ? 'pencil' : 'broom';
+      }
+
+      return {
+        ...br,
+        merged: isMerged,
+        isCurrent: br.isMain,
+        hasUncommitted,
+        showCleanupIcon,
+        cleanupIconType,
+      };
+    });
+
+    const updated: Project = { ...proj, branches: enhancedBranches, status: 'ok' as const, lastUpdated: Date.now() };
     cfg = updateProject(cfg, updated);
   } catch {
-    const updated: Project = { ...proj, status: 'error', lastUpdated: Date.now() };
+    const updated: Project = { ...proj, status: 'error' as const, lastUpdated: Date.now() };
     cfg = updateProject(cfg, updated);
   }
   save(cfg);

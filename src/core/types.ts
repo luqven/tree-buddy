@@ -20,7 +20,13 @@ export interface Branch {
   name: string;
   path: string;
   status: GitStatus;
+  locked?: boolean;
+  isCurrent?: boolean;
+  isMain?: boolean;
   merged?: boolean;
+  hasUncommitted?: boolean;
+  showCleanupIcon?: boolean;
+  cleanupIconType?: 'broom' | 'pencil' | null;
 }
 
 /**

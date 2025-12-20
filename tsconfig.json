@@ -19,6 +19,6 @@
       "@services/*": ["src/services/*"]
     }
   },
-  "include": ["src/renderer/**/*"],
+  "include": ["src/renderer/**/*", "src/main/preload.ts"],
   "exclude": ["node_modules", "dist"]
 }
