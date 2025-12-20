@@ -359,8 +359,11 @@ export async function getMergedBranchesAsync(repoRoot: string, mainBranch: strin
     const output = git(`branch --merged ${mainBranch}`, { cwd: repoRoot });
     return output
       .split('\n')
-      .map(line => line.trim())
-      .filter(line => line && !line.startsWith('*') && line !== mainBranch);
+      .map(line => {
+        // Strip git branch indicators (* for current, + for other worktrees)
+        return line.replace(/^[*+ ]+/, '').trim();
+      })
+      .filter(line => line && line !== mainBranch);
   } catch {
     return [];
   }
