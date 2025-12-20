@@ -13,6 +13,8 @@ import {
   scanForWorktrees,
   scanForWorktreesAsync,
   refreshStatusesAsync,
+  getMainBranchAsync,
+  getMergedBranchesAsync,
 } from './git';
 
 describe('git service', () => {
@@ -165,6 +167,40 @@ describe('git service', () => {
     it('respects max depth', async () => {
       const found = await scanForWorktreesAsync(tmp, 0);
       expect(found.length).toBe(0);
+    });
+  });
+
+  describe('getMainBranchAsync', () => {
+    it('finds main branch (main)', async () => {
+      const main = await getMainBranchAsync(wt1);
+      expect(main).toBe('main');
+    });
+  });
+
+  describe('getMergedBranchesAsync', () => {
+    it('identifies merged branches including those in worktrees', async () => {
+      // 1. Create and merge a branch
+      execSync('git checkout -b merged-branch', { cwd: wt1 });
+      writeFileSync(join(wt1, 'merged.txt'), 'merged');
+      execSync('git add . && git commit -m "merge me"', { cwd: wt1 });
+      execSync('git checkout main', { cwd: wt1 });
+      execSync('git merge merged-branch', { cwd: wt1 });
+
+      // 2. Add it as a worktree (this will make it appear with '+' in git branch --merged)
+      const wtMerged = join(tmp, 'wt-merged');
+      execSync(`git worktree add "${wtMerged}" merged-branch`, { cwd: wt1 });
+
+      // 3. Check merged branches
+      const merged = await getMergedBranchesAsync(wt1, 'main');
+      
+      // Should include merged-branch (even if it has + prefix in git output)
+      expect(merged).toContain('merged-branch');
+      // Should not include main itself
+      expect(merged).not.toContain('main');
+
+      // Cleanup
+      execSync(`git worktree remove "${wtMerged}"`, { cwd: wt1 });
+      execSync('git branch -d merged-branch', { cwd: wt1 });
     });
   });
 });
