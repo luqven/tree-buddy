@@ -168,4 +168,24 @@ describe('store service', () => {
       expect(hasProject(cfg, '/tmp/nope')).toBe(false);
     });
   });
+
+  describe('failure tolerance', () => {
+    it('load returns default config when file is corrupted', () => {
+      const dir = join(testDir, '.config', 'tree-buddy');
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(cfgFile, 'invalid json');
+
+      const cfg = load(testDir);
+      expect(cfg.projects).toEqual([]);
+    });
+
+    it('addProject works even if git fails to list branches', () => {
+      const cfg = defaultConfig();
+      // Use an invalid path that will cause git commands to fail
+      const updated = addProject(cfg, { path: '/invalid/git/path' });
+
+      expect(updated.projects.length).toBe(1);
+      expect(updated.projects[0].branches).toEqual([]);
+    });
+  });
 });

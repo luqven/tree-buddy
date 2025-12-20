@@ -1,24 +1,53 @@
-import { describe, it, expect, vi } from 'vitest';
-import { deleteWorktreeAtPath } from './ipc';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { deleteWorktreeAtPath, initIpc } from './ipc';
+import { load, save } from '../services/store';
 
-vi.mock('child_process', () => ({
-  execSync: vi.fn(),
-  exec: vi.fn((cmd: string, cb: any) => cb(null, '', ''))
+vi.mock('electron', () => ({
+  ipcMain: {
+    handle: vi.fn(),
+  },
+  shell: {
+    openPath: vi.fn(),
+    showItemInFolder: vi.fn(),
+  },
+  dialog: {
+    showOpenDialog: vi.fn(),
+  },
+  BrowserWindow: vi.fn(),
 }));
 
-describe('deleteWorktreeAtPath', () => {
-  it('returns true in test env', async () => {
-    // simulate environment in test mode
-    process.env.NODE_ENV = 'test';
-    const res = await deleteWorktreeAtPath('/path/to/worktree');
-    expect(res).toBe(true);
-  });
+vi.mock('../services/store', () => ({
+  load: vi.fn(),
+  save: vi.fn(),
+  addProject: vi.fn(),
+  rmProject: vi.fn(),
+  updateProject: vi.fn(),
+}));
 
-  it('would attempt deletion when not in test mode', async () => {
-    process.env.NODE_ENV = 'production';
-    const res = await deleteWorktreeAtPath('/path/to/nonexistent/worktree');
-    // In non-test mode, the function attempts actual deletion
-    // Since the path doesn't exist, it should return false
-    expect(res).toBe(false);
+vi.mock('../services/git', () => ({
+  listWorktreesAsync: vi.fn(),
+  refreshStatusesAsync: vi.fn(),
+  scanForWorktreesAsync: vi.fn(),
+  getMainBranchAsync: vi.fn(),
+  getMergedBranchesAsync: vi.fn(),
+  lockWorktreeAsync: vi.fn(),
+  unlockWorktreeAsync: vi.fn(),
+  removeWorktreeAsync: vi.fn(),
+  getRepoRootAsync: vi.fn(),
+}));
+
+describe('IPC / Main Process', () => {
+  describe('deleteWorktreeAtPath', () => {
+    it('returns true in test env', async () => {
+      process.env.NODE_ENV = 'test';
+      const res = await deleteWorktreeAtPath('/path/to/worktree');
+      expect(res).toBe(true);
+    });
+
+    it('would attempt deletion when not in test mode', async () => {
+      process.env.NODE_ENV = 'production';
+      const res = await deleteWorktreeAtPath('/path/to/nonexistent/worktree');
+      expect(res).toBe(false);
+    });
   });
 });

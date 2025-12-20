@@ -359,11 +359,8 @@ export async function getMainBranchAsync(repoRoot: string): Promise<string> {
   }
 
   // Final fallback: current branch of the main repo
-  try {
-    return git('rev-parse --abbrev-ref HEAD', { cwd: repoRoot });
-  } catch {
-    return 'main';
-  }
+  const current = git('rev-parse --abbrev-ref HEAD', { cwd: repoRoot });
+  return current || 'main';
 }
 
 /**

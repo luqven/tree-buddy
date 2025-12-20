@@ -232,4 +232,37 @@ describe('git service', () => {
       execSync('git branch -d merged-branch', { cwd: wt1 });
     });
   });
+
+  describe('failure tolerance (offline support)', () => {
+    it('getStatus returns safe defaults when path is not a repo', () => {
+      const s = getStatus(tmp);
+      expect(s).toEqual({
+        ahead: 0,
+        behind: 0,
+        dirty: false,
+        ts: expect.any(Number),
+      });
+    });
+
+    it('listWorktrees returns empty array when git fails', () => {
+      const wts = listWorktrees('/non/existent/path');
+      expect(wts).toEqual([]);
+    });
+
+    it('getMainBranchAsync returns fallback "main" when git fails', async () => {
+      const main = await getMainBranchAsync('/non/existent/path');
+      expect(main).toBe('main');
+    });
+
+    it('refreshStatusesAsync handles partial failures', async () => {
+      const branches = [
+        { name: 'main', path: wt1, status: { ahead: 0, behind: 0, dirty: false, ts: 0 } },
+        { name: 'bad', path: '/invalid/path', status: { ahead: 0, behind: 0, dirty: false, ts: 0 } },
+      ];
+      const refreshed = await refreshStatusesAsync(branches);
+      expect(refreshed[0].status.ts).toBeGreaterThan(0);
+      expect(refreshed[1].status.ts).toBeGreaterThan(0); // Should still have a TS from the default object
+      expect(refreshed[1].status.dirty).toBe(false);
+    });
+  });
 });
