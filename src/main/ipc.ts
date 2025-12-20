@@ -20,10 +20,44 @@ let lastRefreshTs = 0;
 let mainWindow: BrowserWindow | null = null;
 
 /**
- * Set the main window reference for sending updates
+ * Refresh all project statuses (with per-branch merged hint)
  */
-export function setMainWindow(win: BrowserWindow | null) {
-  mainWindow = win;
+async function refreshAllAsync(): Promise<void> {
+  const { execSync } = require('child_process');
+  if (isRefreshing) return;
+  isRefreshing = true;
+  lastRefreshTs = Date.now();
+  notifyRenderer();
+
+  try {
+    const updated = await Promise.all(
+      cfg.projects.map(async (p) => {
+        try {
+          const branches = await listWorktreesAsync(p.root);
+          const refreshed = await refreshStatusesAsync(branches);
+          // compute per-branch merged flag
+          const mergedFlags = refreshed.map(() => {
+            try {
+              const head = execSync('git rev-parse HEAD', { cwd: p.root }).toString().trim();
+              execSync(`git merge-base --is-ancestor ${head} main`, { cwd: p.root });
+              return true;
+            } catch {
+              return false;
+            }
+          });
+          const branchesWithMerged = refreshed.map((br, idx) => ({ ...br, merged: mergedFlags[idx] }));
+          return { ...p, branches: branchesWithMerged, status: 'ok' as const, lastUpdated: Date.now() };
+        } catch {
+          return { ...p, status: 'error' as const, lastUpdated: Date.now() };
+        }
+      })
+    );
+    cfg = { ...cfg, projects: updated };
+    save(cfg);
+  } finally {
+    isRefreshing = false;
+    notifyRenderer();
+  }
 }
 
 /**
@@ -128,11 +162,42 @@ export function initIpc(): void {
     const { app } = require('electron');
     app.quit();
   });
-
+ 
   // Refresh on window show (throttled)
   ipcMain.handle('window-shown', async () => {
     await refreshAllThrottledAsync();
   });
+ 
+  // Delete a merged worktree
+  ipcMain.handle('delete-worktree', async (_e, worktreePath: string) => {
+    try {
+      const { execSync } = require('child_process');
+      // determine root from the worktree path
+      let root = '';
+      try {
+        root = execSync(`git -C "${worktreePath}" rev-parse --show-toplevel`).toString().trim();
+      } catch {
+        // if cannot determine, fail gracefully
+        return false;
+      }
+      if (root) {
+        execSync(`git -C "${root}" worktree remove "${worktreePath}"`, { stdio: 'ignore' });
+        // refresh project containing this worktree if possible
+        const proj = cfg?.projects?.find((p) => p.branches?.some((b) => b.path === worktreePath));
+        if (proj) {
+          await refreshProjectAsync(proj.id);
+        } else {
+          await refreshAllAsync();
+        }
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  });
+ 
+  // Ensure lastUpdated timestamps exist on initial load? (no-op)
 }
 
 /**
@@ -165,7 +230,7 @@ async function refreshAllAsync(): Promise<void> {
           const refreshed = await refreshStatusesAsync(branches);
           return { ...p, branches: refreshed, status: 'ok' as const };
         } catch {
-          return { ...p, status: 'error' as const };
+          return { ...p, status: 'error' as const, lastUpdated: Date.now() };
         }
       })
     );
@@ -187,7 +252,7 @@ async function refreshProjectAsync(id: string): Promise<void> {
   try {
     const branches = await listWorktreesAsync(proj.root);
     const refreshed = await refreshStatusesAsync(branches);
-    const updated: Project = { ...proj, branches: refreshed, status: 'ok' };
+    const updated: Project = { ...proj, branches: refreshed, status: 'ok', lastUpdated: Date.now() };
     cfg = updateProject(cfg, updated);
   } catch {
     const updated: Project = { ...proj, status: 'error' };

@@ -20,6 +20,7 @@ export interface Branch {
   name: string;
   path: string;
   status: GitStatus;
+  merged?: boolean;
 }
 
 /**
@@ -40,6 +41,7 @@ export interface Project {
   root: string; // bare repo or main worktree path
   branches: Branch[];
   status?: ProjectStatus;
+  lastUpdated?: number;
 }
 
 /**

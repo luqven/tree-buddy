@@ -50,14 +50,6 @@ export function Header({ view, onViewChange }: HeaderProps) {
         >
           <Gear size={16} />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={quit}
-          title="Quit"
-        >
-          <Power size={16} />
-        </Button>
       </div>
     </header>
   );

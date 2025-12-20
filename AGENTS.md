@@ -68,3 +68,4 @@ function addProject(cfg: Config, opts: AddProjectOpts): Config
 - Core types are exported from `src/index.ts` for future GUI
 - Services are pure functions, not classes
 - UI is decoupled from business logic
+- UI tweaks: removed Quit icon from header; reserved action slot in project rows to prevent layout shifts when hovering

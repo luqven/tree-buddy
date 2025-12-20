@@ -6,7 +6,7 @@ import { BranchTree } from './BranchTree';
 import { AddProjectDialog } from './AddProjectDialog';
 import { useAppState } from '../hooks/useAppState';
 import type { Project } from '@core/types';
-import { cn } from '@/lib/utils';
+import { cn, fmtAgo } from '@/lib/utils';
 
 export function ProjectList() {
   const {
@@ -104,9 +104,14 @@ function ProjectItem({
         {isError && <Warning size={14} className="text-status-red" />}
         <span className="flex-1 text-sm truncate">
           {project.name}
+          {project.lastUpdated && (
+            <span className="ml-2 text-xs text-muted-foreground" title={new Date(project.lastUpdated).toString()}>
+              • Last updated {fmtAgo(project.lastUpdated)}
+            </span>
+          )}
           {isLoading && <span className="ml-1 text-muted-foreground">...</span>}
         </span>
-        <div className="hidden group-hover:flex items-center gap-1">
+        <div className="flex items-center gap-1 w-8 opacity-0 group-hover:opacity-100 transition-opacity" aria-label="project-actions">
           <Button
             variant="ghost"
             size="icon"
