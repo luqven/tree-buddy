@@ -104,15 +104,21 @@ interface BranchItemProps {
 
 function BranchItem({ branch, onOpen }: BranchItemProps) {
   const { lockWorktree, unlockWorktree } = useAppState();
+  const [isPending, setIsPending] = useState(false);
   const status = toSyncStatus(branch.status);
   const ago = branch.status.ts ? fmtAgo(branch.status.ts) : 'never';
 
-  const toggleLock = (e: React.MouseEvent) => {
+  const toggleLock = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (branch.locked) {
-      unlockWorktree(branch.path);
-    } else {
-      lockWorktree(branch.path);
+    setIsPending(true);
+    try {
+      if (branch.locked) {
+        await unlockWorktree(branch.path);
+      } else {
+        await lockWorktree(branch.path);
+      }
+    } catch {
+      setIsPending(false);
     }
   };
 
@@ -121,10 +127,11 @@ function BranchItem({ branch, onOpen }: BranchItemProps) {
       className={cn(
         'group flex items-center p-2 rounded-md hover:bg-accent/50 transition-colors',
         branch.isCurrent && 'font-semibold',
-        branch.locked && 'opacity-75'
+        branch.locked && 'opacity-75',
+        isPending && 'opacity-50 pointer-events-none'
       )}
-      onClick={() => onOpen(branch.path)}
-      title={`Open ${branch.name} (${branch.locked ? 'locked' : 'unlocked'})`}
+      onClick={() => !isPending && onOpen(branch.path)}
+      title={isPending ? 'Processing...' : `Open ${branch.name} (${branch.locked ? 'locked' : 'unlocked'})`}
     >
       <StatusDot status={status} />
       <span className="flex-1 text-sm truncate">{branch.name}</span>
@@ -135,9 +142,11 @@ function BranchItem({ branch, onOpen }: BranchItemProps) {
           <button
             className={cn(
               "inline-flex items-center justify-center w-5 h-5 transition-colors",
-              branch.locked ? "text-primary" : "text-muted-foreground/30 hover:text-primary opacity-0 group-hover:opacity-100"
+              branch.locked ? "text-primary" : "text-muted-foreground/30 hover:text-primary opacity-0 group-hover:opacity-100",
+              isPending && "cursor-not-allowed"
             )}
             onClick={toggleLock}
+            disabled={isPending}
             title={branch.locked ? "Unlock worktree" : "Lock worktree"}
           >
             <Lock size={14} weight={branch.locked ? "fill" : "regular"} />
@@ -149,8 +158,12 @@ function BranchItem({ branch, onOpen }: BranchItemProps) {
         {/* Cleanup icons - only for merged + unlocked + not current */}
         {branch.showCleanupIcon ? (
           <button
-            className="inline-flex items-center justify-center w-5 h-5 text-muted-foreground hover:text-primary"
-            onClick={(e) => {
+            className={cn(
+              "inline-flex items-center justify-center w-5 h-5 text-muted-foreground hover:text-primary",
+              isPending && "cursor-not-allowed"
+            )}
+            disabled={isPending}
+            onClick={async (e) => {
               e.stopPropagation();
 
               const isPencil = branch.cleanupIconType === 'pencil';
@@ -162,7 +175,13 @@ function BranchItem({ branch, onOpen }: BranchItemProps) {
                 if (!confirmed) return;
               }
 
-              window.treeBuddy.deleteWorktree(branch.path);
+              setIsPending(true);
+              try {
+                const ok = await window.treeBuddy.deleteWorktree(branch.path);
+                if (!ok) setIsPending(false);
+              } catch {
+                setIsPending(false);
+              }
             }}
             title={branch.cleanupIconType === 'pencil'
               ? "Delete merged worktree (has uncommitted changes)"
