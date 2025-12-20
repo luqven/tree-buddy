@@ -193,6 +193,19 @@ describe('git service', () => {
     });
   });
 
+  describe('lock/unlock', () => {
+    it('locks and unlocks a worktree', async () => {
+      const { lockWorktreeAsync, unlockWorktreeAsync, listWorktreesAsync } = await import('./git');
+      await lockWorktreeAsync(wt2);
+      let wts = await listWorktreesAsync(wt1);
+      expect(wts.find(w => w.name === 'feature')?.locked).toBe(true);
+
+      await unlockWorktreeAsync(wt2);
+      wts = await listWorktreesAsync(wt1);
+      expect(wts.find(w => w.name === 'feature')?.locked).toBe(false);
+    });
+  });
+
   describe('getMergedBranchesAsync', () => {
     it('identifies merged branches including those in worktrees', async () => {
       // 1. Create and merge a branch

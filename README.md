@@ -7,6 +7,7 @@ macOS menubar app for managing git worktrees.
 - **Project discovery** - Scans `~/Documents` for worktree projects
 - **Branch scoping** - Groups branches by path segments (e.g., `l/ENG-123/feat` → `l` → `ENG-123` → `feat`)
 - **Status indicators** - Stoplight colors: green (clean), yellow (uncommitted), red (behind upstream)
+- **Branch protection** - Lock branches to prevent accidental cleanup/deletion
 - **Background refresh** - Auto-updates every 5 minutes
 - **Cached startup** - Shows cached data instantly, refreshes in background
 
