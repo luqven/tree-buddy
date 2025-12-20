@@ -1,4 +1,4 @@
-import { app, Tray, shell } from 'electron';
+import { app, Tray, shell, nativeImage } from 'electron';
 import { join } from 'path';
 import { homedir } from 'os';
 import { Config, Project } from '../core/types';
@@ -106,10 +106,15 @@ function init(): void {
   // Load config
   cfg = load();
 
-  // Create tray
-  // Use a template image for macOS menubar
-  const iconPath = join(__dirname, '..', '..', 'assets', 'tray-iconTemplate.png');
-  tray = new Tray(iconPath);
+  // Create tray with native image
+  const iconPath = join(app.getAppPath(), 'assets', 'tray-iconTemplate.png');
+  const icon = nativeImage.createFromPath(iconPath);
+  // If icon fails to load, create empty 16x16 image
+  const trayIcon = icon.isEmpty()
+    ? nativeImage.createEmpty().resize({ width: 16, height: 16 })
+    : icon;
+  trayIcon.setTemplateImage(true);
+  tray = new Tray(trayIcon);
   tray.setToolTip('Tree Buddy');
 
   // Initial menu
