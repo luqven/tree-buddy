@@ -1,0 +1,23 @@
+{
+  "name": "tree-buddy",
+  "version": "0.1.0",
+  "description": "macOS menubar app for managing git worktrees",
+  "main": "dist/main/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "npm run build && electron .",
+    "test": "vitest",
+    "test:watch": "vitest watch"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "electron": "^28.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  },
+  "dependencies": {
+    "menubar": "^9.4.0"
+  }
+}
