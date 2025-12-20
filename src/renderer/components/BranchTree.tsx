@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { CaretRight, Broom, Lock, Pencil } from '@phosphor-icons/react';
 import { StatusDot } from './StatusDot';
 import { useAppState } from '../hooks/useAppState';
@@ -14,10 +14,12 @@ interface BranchTreeProps {
 export function BranchTree({ project }: BranchTreeProps) {
   const { cfg, openPath } = useAppState();
 
-  const tree = buildTree(project.branches, {
-    delim: cfg.scopeDelim,
-    enabled: cfg.scopeEnabled,
-  });
+  const tree = useMemo(() => {
+    return buildTree(project.branches, {
+      delim: cfg.scopeDelim,
+      enabled: cfg.scopeEnabled,
+    });
+  }, [project.branches, cfg.scopeDelim, cfg.scopeEnabled]);
 
   return (
     <div className="py-1">
