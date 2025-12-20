@@ -124,7 +124,7 @@ export function listWorktrees(root: string): Branch[] {
   if (!out) return [];
 
   const branches: Branch[] = [];
-  let cur: Partial<Branch> = {};
+  let cur: Partial<Branch & { locked?: boolean }> = {};
 
   for (const line of out.split('\n')) {
     if (line.startsWith('worktree ')) {
@@ -132,12 +132,16 @@ export function listWorktrees(root: string): Branch[] {
     } else if (line.startsWith('branch ')) {
       const ref = line.slice(7);
       cur.name = ref.replace('refs/heads/', '');
+    } else if (line.startsWith('locked')) {
+      cur.locked = true;
     } else if (line === '') {
       if (cur.path && cur.name) {
         branches.push({
           name: cur.name,
           path: cur.path,
           status: { ahead: 0, behind: 0, dirty: false, ts: 0 },
+          locked: cur.locked || false,
+          isMain: branches.length === 0,
         });
       }
       cur = {};
@@ -150,6 +154,8 @@ export function listWorktrees(root: string): Branch[] {
       name: cur.name,
       path: cur.path,
       status: { ahead: 0, behind: 0, dirty: false, ts: 0 },
+      locked: cur.locked || false,
+      isMain: branches.length === 0,
     });
   }
 
@@ -288,7 +294,7 @@ export async function listWorktreesAsync(root: string): Promise<Branch[]> {
     } else if (line.startsWith('branch ')) {
       const ref = line.slice(7);
       cur.name = ref.replace('refs/heads/', '');
-    } else if (line === 'locked') {
+    } else if (line.startsWith('locked')) {
       cur.locked = true;
     } else if (line === '') {
       if (cur.path && cur.name) {

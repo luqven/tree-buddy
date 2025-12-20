@@ -126,6 +126,22 @@ describe('git service', () => {
       expect(names).toContain('main');
       expect(names).toContain('feature');
     });
+
+    it('sets isMain correctly', async () => {
+      const wts = await listWorktreesAsync(wt1);
+      const main = wts.find(w => w.name === 'main');
+      const feature = wts.find(w => w.name === 'feature');
+      expect(main?.isMain).toBe(true);
+      expect(feature?.isMain).toBe(false);
+    });
+
+    it('detects locked worktrees', async () => {
+      execSync(`git worktree lock "${wt2}" --reason "test"`, { cwd: wt1 });
+      const wts = await listWorktreesAsync(wt1);
+      const feature = wts.find(w => w.name === 'feature');
+      expect(feature?.locked).toBe(true);
+      execSync(`git worktree unlock "${wt2}"`, { cwd: wt1 });
+    });
   });
 
   describe('getStatusAsync', () => {

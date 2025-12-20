@@ -79,6 +79,14 @@ export function useAppState() {
     await window.treeBuddy?.showInFolder(path);
   }, []);
 
+  const lockWorktree = useCallback(async (path: string) => {
+    await window.treeBuddy?.lockWorktree(path);
+  }, []);
+
+  const unlockWorktree = useCallback(async (path: string) => {
+    await window.treeBuddy?.unlockWorktree(path);
+  }, []);
+
   const updateConfig = useCallback(async (updates: Partial<Config>) => {
     await window.treeBuddy?.updateConfig(updates);
   }, []);
@@ -102,6 +110,8 @@ export function useAppState() {
     removeProject,
     openPath,
     showInFolder,
+    lockWorktree,
+    unlockWorktree,
     updateConfig,
     quit,
   };

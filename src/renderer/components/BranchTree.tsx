@@ -101,77 +101,84 @@ interface BranchItemProps {
 }
 
 function BranchItem({ branch, onOpen }: BranchItemProps) {
+  const { lockWorktree, unlockWorktree } = useAppState();
   const status = toSyncStatus(branch.status);
   const ago = branch.status.ts ? fmtAgo(branch.status.ts) : 'never';
+
+  const toggleLock = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (branch.locked) {
+      unlockWorktree(branch.path);
+    } else {
+      lockWorktree(branch.path);
+    }
+  };
 
   return (
     <div
       className={cn(
-        'flex items-center p-2 rounded-md hover:bg-accent/50 transition-colors',
+        'group flex items-center p-2 rounded-md hover:bg-accent/50 transition-colors',
         branch.isCurrent && 'font-semibold',
         branch.locked && 'opacity-75'
       )}
       onClick={() => onOpen(branch.path)}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        // Simple context menu - could be enhanced with a proper menu component
-        const action = branch.locked ? 'unlock' : 'lock';
-        const confirmed = window.confirm(`Do you want to ${action} this worktree?`);
-        if (confirmed) {
-          if (action === 'lock') {
-            window.treeBuddy.lockWorktree(branch.path);
-          } else {
-            window.treeBuddy.unlockWorktree(branch.path);
-          }
-        }
-      }}
       title={`Open ${branch.name} (${branch.locked ? 'locked' : 'unlocked'})`}
     >
       <StatusDot status={status} />
       <span className="flex-1 text-sm truncate">{branch.name}</span>
 
-    {/* Lock icon - always shown for locked branches */}
-    {branch.locked && (
-      <Lock size={14} className="ml-2 text-muted-foreground" title="Locked worktree" />
-    )}
-
-    {/* Cleanup icons - only for merged + unlocked + not current */}
-    {branch.showCleanupIcon && (
-      <button
-        className="ml-2 inline-flex items-center justify-center w-5 h-5 text-muted-foreground hover:text-primary"
-        onClick={(e) => {
-          e.stopPropagation();
-
-          const isPencil = branch.cleanupIconType === 'pencil';
-          if (isPencil) {
-            // Show confirmation for pencil (uncommitted changes)
-            const confirmed = window.confirm(
-              `This worktree has uncommitted changes. Are you sure you want to delete "${branch.name}"?`
-            );
-            if (!confirmed) return;
-          }
-
-          window.treeBuddy.deleteWorktree(branch.path);
-        }}
-        title={branch.cleanupIconType === 'pencil'
-          ? "Delete merged worktree (has uncommitted changes)"
-          : "Delete merged worktree"
-        }
-      >
-        {branch.cleanupIconType === 'pencil' ? (
-          <Pencil size={14} />
+      <div className="flex items-center gap-1 ml-2 mr-2">
+        {/* Lock icon - clickable for all non-main branches */}
+        {!branch.isMain ? (
+          <button
+            className={cn(
+              "inline-flex items-center justify-center w-5 h-5 transition-colors",
+              branch.locked ? "text-primary" : "text-muted-foreground/30 hover:text-primary opacity-0 group-hover:opacity-100"
+            )}
+            onClick={toggleLock}
+            title={branch.locked ? "Unlock worktree" : "Lock worktree"}
+          >
+            <Lock size={14} weight={branch.locked ? "fill" : "regular"} />
+          </button>
         ) : (
-          <Broom size={14} />
+          <div className="w-5" />
         )}
-      </button>
-    )}
 
-    {/* Spacer when no cleanup icon */}
-    {!branch.locked && !branch.showCleanupIcon && (
-      <span className="ml-2 w-5" aria-label="action-slot" />
-    )}
+        {/* Cleanup icons - only for merged + unlocked + not current */}
+        {branch.showCleanupIcon ? (
+          <button
+            className="inline-flex items-center justify-center w-5 h-5 text-muted-foreground hover:text-primary"
+            onClick={(e) => {
+              e.stopPropagation();
 
-    <span className="text-xs text-muted-foreground">{ago}</span>
-  </div>
+              const isPencil = branch.cleanupIconType === 'pencil';
+              if (isPencil) {
+                // Show confirmation for pencil (uncommitted changes)
+                const confirmed = window.confirm(
+                  `This worktree has uncommitted changes. Are you sure you want to delete "${branch.name}"?`
+                );
+                if (!confirmed) return;
+              }
+
+              window.treeBuddy.deleteWorktree(branch.path);
+            }}
+            title={branch.cleanupIconType === 'pencil'
+              ? "Delete merged worktree (has uncommitted changes)"
+              : "Delete merged worktree"
+            }
+          >
+            {branch.cleanupIconType === 'pencil' ? (
+              <Pencil size={14} />
+            ) : (
+              <Broom size={14} />
+            )}
+          </button>
+        ) : (
+          <div className="w-5" />
+        )}
+      </div>
+
+      <span className="text-xs text-muted-foreground tabular-nums">{ago}</span>
+    </div>
   );
 }
