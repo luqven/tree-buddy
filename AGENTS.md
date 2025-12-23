@@ -7,8 +7,9 @@ Code quality and organization standards for this project.
 1. **TypeScript only** - No JavaScript files
 2. **Unit test each module** - Tests live alongside source (`*.test.ts`)
 3. **Conventional commits** - Commit when a reasonable amount of work is done
-4. **Max 4 arguments per function** - Use options objects for more
-5. **Short variable names** - Prefer concise, readable names
+4. **Kill and restart** - After every commit kill and restart the app
+5. **Max 4 arguments per function** - Use options objects for more
+6. **Short variable names** - Prefer concise, readable names
 
 ## Code Organization
 
