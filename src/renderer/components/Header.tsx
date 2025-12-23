@@ -34,15 +34,6 @@ export function Header({ view, onViewChange }: HeaderProps) {
         <Button
           variant="ghost"
           size="icon"
-          onClick={cleanupAllMerged}
-          disabled={mergedCount === 0 || isRefreshing}
-          title={mergedCount > 0 ? `Cleanup ${mergedCount} merged worktrees` : "No merged worktrees to cleanup"}
-        >
-          <Broom size={16} />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
           onClick={refreshAll}
           disabled={isRefreshing}
           title="Refresh All"
@@ -51,6 +42,15 @@ export function Header({ view, onViewChange }: HeaderProps) {
             size={16}
             className={isRefreshing ? 'animate-spin' : ''}
           />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={cleanupAllMerged}
+          disabled={mergedCount === 0 || isRefreshing}
+          title={mergedCount > 0 ? `Cleanup ${mergedCount} merged worktrees` : "No merged worktrees to cleanup"}
+        >
+          <Broom size={16} />
         </Button>
       </div>
 
