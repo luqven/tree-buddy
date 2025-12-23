@@ -61,7 +61,7 @@ export function Header({ view, onViewChange }: HeaderProps) {
           size="icon"
           onClick={cleanupAllUnprotected}
           disabled={unprotectedCount === 0 || isRefreshing}
-          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+          className="hover:text-destructive hover:bg-destructive/10"
           title={unprotectedCount > 0 ? `Delete ${unprotectedCount} unprotected worktrees` : "No unprotected worktrees to cleanup"}
         >
           <Trash size={16} />
