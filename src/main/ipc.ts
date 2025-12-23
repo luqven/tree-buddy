@@ -83,11 +83,16 @@ export function initIpc(): void {
     app.quit();
   });
   // Delete a merged worktree
-  ipcMainHandleSafe('delete-worktree', async (_e, root: string, worktreePath: string, force = false) => {
+  ipcMainHandleSafe('delete-worktree', async (_e, root: string, worktreePath: string, force = false, useTrash = false) => {
     if (process.env.NODE_ENV === 'test') return true;
     try {
-      log(`[ipc] delete-worktree request: ${worktreePath} (force: ${force})`);
-      await removeWorktreeAsync(root, worktreePath, force);
+      log(`[ipc] delete-worktree request: ${worktreePath} (force: ${force}, useTrash: ${useTrash})`);
+      if (useTrash) {
+        await shell.trashItem(worktreePath);
+        await pruneWorktreesAsync(root);
+      } else {
+        await removeWorktreeAsync(root, worktreePath, force);
+      }
       await refreshAllAsync(true);
       return true;
     } catch (err) {
@@ -95,7 +100,7 @@ export function initIpc(): void {
       return false;
     }
   });
-  ipcMainHandleSafe('delete-worktrees', async (_e, items: { root: string; path: string; force?: boolean }[]) => {
+  ipcMainHandleSafe('delete-worktrees', async (_e, items: { root: string; path: string; force?: boolean; useTrash?: boolean }[]) => {
     log(`[ipc] delete-worktrees request received for ${items.length} items`);
     if (process.env.NODE_ENV === 'test') return true;
     
@@ -104,29 +109,25 @@ export function initIpc(): void {
 
     let allOk = true;
     try {
-      // Run prune once at the start to clean up ghost worktrees
       const uniqueRoots = Array.from(new Set(items.map(i => i.root)));
-      for (const root of uniqueRoots) {
-        try {
-          await pruneWorktreesAsync(root);
-        } catch (err) {
-          logError(`[ipc] failed to prune worktrees in ${root}`, err);
-        }
-      }
 
-      // Process sequentially to avoid Git index lock contention
       for (const item of items) {
         try {
-          log(`[ipc] attempting to remove worktree: ${item.path} from root: ${item.root} (force: ${!!item.force})`);
+          log(`[ipc] attempting to remove worktree: ${item.path} from root: ${item.root} (force: ${!!item.force}, useTrash: ${!!item.useTrash})`);
           
-          // Send progress update to renderer so it can update its local "deleting" state
           if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('deletion-progress', { path: item.path, status: 'started' });
           }
 
-          // Increase timeout for individual removals as they can be slow on disk
-          await removeWorktreeAsync(item.root, item.path, !!item.force);
-          log(`[ipc] successfully removed worktree: ${item.path}`);
+          if (item.useTrash) {
+            // Fast "bumblebee" approach: Move to trash, then prune later
+            await shell.trashItem(item.path);
+            log(`[ipc] successfully trashed worktree: ${item.path}`);
+          } else {
+            // Standard git removal
+            await removeWorktreeAsync(item.root, item.path, !!item.force);
+            log(`[ipc] successfully removed worktree: ${item.path}`);
+          }
           
           if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('deletion-progress', { path: item.path, status: 'finished' });
@@ -141,6 +142,16 @@ export function initIpc(): void {
             logError(`[ipc] failed to remove worktree ${item.path}:`, err);
             allOk = false;
           }
+        }
+      }
+
+      // Always prune at the end to clean up metadata for trashed/deleted worktrees
+      for (const root of uniqueRoots) {
+        try {
+          log(`[ipc] pruning worktrees in ${root}`);
+          await pruneWorktreesAsync(root);
+        } catch (err) {
+          logError(`[ipc] failed to prune worktrees in ${root}`, err);
         }
       }
     } finally {

@@ -37,15 +37,11 @@ async function gitAsync(args: string, opts: ExecOpts): Promise<string> {
   try {
     const { stdout } = await execAsync(cmd, {
       cwd: opts.cwd,
-      timeout: opts.timeout ?? 10000,
+      timeout: opts.timeout ?? 15000,
       encoding: 'utf-8',
     });
     return stdout.trim();
   } catch (err: any) {
-    // Only log if it's not a common/expected error like missing upstream
-    if (!cmd.includes('rev-list') && !cmd.includes('show-ref')) {
-      logError(`[git] command failed: ${cmd} in ${opts.cwd}`, err);
-    }
     throw err;
   }
 }
@@ -444,7 +440,14 @@ export async function unlockWorktreeAsync(worktreePath: string): Promise<void> {
  */
 export async function removeWorktreeAsync(repoRoot: string, worktreePath: string, force = false): Promise<void> {
   const args = force ? `worktree remove --force "${worktreePath}"` : `worktree remove "${worktreePath}"`;
-  await gitAsync(args, { cwd: repoRoot, timeout: 30000 });
+  await gitAsync(args, { cwd: repoRoot, timeout: 60000 });
+}
+
+/**
+ * Prune stale worktrees
+ */
+export async function pruneWorktreesAsync(repoRoot: string): Promise<void> {
+  await gitAsync('worktree prune', { cwd: repoRoot });
 }
 
 /**

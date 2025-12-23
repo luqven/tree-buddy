@@ -61,5 +61,12 @@ describe('IPC / Main Process', () => {
       const registered = (ipcMain.handle as any).mock.calls.some((call: any) => call[0] === 'delete-worktree');
       expect(registered).toBe(true);
     });
+
+    it('handles useTrash option in delete-worktrees', async () => {
+      // This is a bit hard to test deeply without mocking shell.trashItem
+      // but we can at least check if it handles it without crashing in the mock environment
+      const registered = (ipcMain.handle as any).mock.calls.find((call: any) => call[0] === 'delete-worktrees');
+      expect(registered).toBeDefined();
+    });
   });
 });

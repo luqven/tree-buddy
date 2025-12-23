@@ -84,5 +84,11 @@ describe('getCleanupItems', () => {
     expect(paths).not.toContain('/root/feat');
     expect(paths).toHaveLength(1);
     expect(items[0].force).toBe(false);
+    expect(items[0].useTrash).toBe(false);
+  });
+
+  it('sets useTrash to true for trash cleanup', () => {
+    const items = getCleanupItems(mockProjects, 'trash');
+    expect(items.every(i => i.useTrash)).toBe(true);
   });
 });

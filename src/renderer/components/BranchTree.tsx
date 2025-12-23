@@ -185,7 +185,8 @@ function BranchItem({ branch, projectRoot, onOpen }: BranchItemProps) {
 
               setIsPending(true);
               try {
-                const ok = await window.treeBuddy.deleteWorktree(projectRoot, branch.path, isPencil);
+                // Use fast "bumblebee" trash approach for individual cleanups too
+                const ok = await window.treeBuddy.deleteWorktree(projectRoot, branch.path, isPencil, true);
                 if (!ok) setIsPending(false);
               } catch {
                 setIsPending(false);
