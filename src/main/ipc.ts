@@ -11,6 +11,7 @@ import {
   lockWorktreeAsync,
   unlockWorktreeAsync,
   removeWorktreeAsync,
+  pruneWorktreesAsync,
 } from '../services/git';
 import { load, save, addProject, rmProject, updateProject } from '../services/store';
 import { loadScanCache, saveScanCache, isCacheStale } from '../services/cache';
@@ -103,14 +104,43 @@ export function initIpc(): void {
 
     let allOk = true;
     try {
+      // Run prune once at the start to clean up ghost worktrees
+      const uniqueRoots = Array.from(new Set(items.map(i => i.root)));
+      for (const root of uniqueRoots) {
+        try {
+          await pruneWorktreesAsync(root);
+        } catch (err) {
+          logError(`[ipc] failed to prune worktrees in ${root}`, err);
+        }
+      }
+
+      // Process sequentially to avoid Git index lock contention
       for (const item of items) {
         try {
           log(`[ipc] attempting to remove worktree: ${item.path} from root: ${item.root} (force: ${!!item.force})`);
+          
+          // Send progress update to renderer so it can update its local "deleting" state
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('deletion-progress', { path: item.path, status: 'started' });
+          }
+
+          // Increase timeout for individual removals as they can be slow on disk
           await removeWorktreeAsync(item.root, item.path, !!item.force);
           log(`[ipc] successfully removed worktree: ${item.path}`);
-        } catch (err) {
-          logError(`[ipc] failed to remove worktree ${item.path}:`, err);
-          allOk = false;
+          
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('deletion-progress', { path: item.path, status: 'finished' });
+          }
+        } catch (err: any) {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('deletion-progress', { path: item.path, status: 'failed' });
+          }
+          if (err.stderr && (err.stderr.includes('is not a working tree') || err.stderr.includes('does not exist'))) {
+            log(`[ipc] worktree already gone: ${item.path}`);
+          } else {
+            logError(`[ipc] failed to remove worktree ${item.path}:`, err);
+            allOk = false;
+          }
         }
       }
     } finally {

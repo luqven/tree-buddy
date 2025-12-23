@@ -25,6 +25,7 @@ export interface TreeBuddyAPI {
   unlockWorktree: (path: string) => Promise<void>;
   windowShown: () => Promise<void>;
   onStateUpdate: (cb: (state: AppState) => void) => () => void;
+  onDeletionProgress: (cb: (data: { path: string; status: 'started' | 'finished' | 'failed' }) => void) => () => void;
 }
 
 const api: TreeBuddyAPI = {
@@ -49,6 +50,11 @@ const api: TreeBuddyAPI = {
     const handler = (_e: Electron.IpcRendererEvent, state: AppState) => cb(state);
     ipcRenderer.on('state-update', handler);
     return () => ipcRenderer.removeListener('state-update', handler);
+  },
+  onDeletionProgress: (cb) => {
+    const handler = (_e: Electron.IpcRendererEvent, data: any) => cb(data);
+    ipcRenderer.on('deletion-progress', handler);
+    return () => ipcRenderer.removeListener('deletion-progress', handler);
   },
 };
 

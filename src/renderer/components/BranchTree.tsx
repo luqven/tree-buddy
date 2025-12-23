@@ -107,10 +107,13 @@ interface BranchItemProps {
 }
 
 function BranchItem({ branch, projectRoot, onOpen }: BranchItemProps) {
-  const { lockWorktree, unlockWorktree } = useAppState();
+  const { lockWorktree, unlockWorktree, deletingPaths } = useAppState();
   const [isPending, setIsPending] = useState(false);
   const status = toSyncStatus(branch.status);
   const ago = branch.status.ts ? fmtAgo(branch.status.ts) : 'never';
+
+  const isDeleting = deletingPaths.has(branch.path);
+  const isBusy = isPending || isDeleting;
 
   const toggleLock = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -132,10 +135,11 @@ function BranchItem({ branch, projectRoot, onOpen }: BranchItemProps) {
         'group flex items-center p-2 rounded-md hover:bg-accent/50 transition-colors',
         branch.isCurrent && 'font-semibold',
         branch.locked && 'opacity-75',
-        isPending && 'opacity-50 pointer-events-none'
+        isBusy && 'opacity-50 pointer-events-none',
+        isDeleting && 'animate-pulse'
       )}
-      onClick={() => !isPending && onOpen(branch.path)}
-      title={isPending ? 'Processing...' : `Open ${branch.name} (${branch.locked ? 'locked' : 'unlocked'})`}
+      onClick={() => !isBusy && onOpen(branch.path)}
+      title={isBusy ? 'Processing...' : `Open ${branch.name} (${branch.locked ? 'locked' : 'unlocked'})`}
     >
       <StatusDot status={status} />
       <span className="flex-1 text-sm truncate">{branch.name}</span>
@@ -147,10 +151,10 @@ function BranchItem({ branch, projectRoot, onOpen }: BranchItemProps) {
             className={cn(
               "inline-flex items-center justify-center w-5 h-5 transition-colors",
               branch.locked ? "text-primary" : "text-muted-foreground/30 hover:text-primary opacity-0 group-hover:opacity-100",
-              isPending && "cursor-not-allowed"
+              isBusy && "cursor-not-allowed"
             )}
             onClick={toggleLock}
-            disabled={isPending}
+            disabled={isBusy}
             title={branch.locked ? "Unlock worktree" : "Lock worktree"}
           >
             <Lock size={14} weight={branch.locked ? "fill" : "regular"} />
@@ -164,9 +168,9 @@ function BranchItem({ branch, projectRoot, onOpen }: BranchItemProps) {
           <button
             className={cn(
               "inline-flex items-center justify-center w-5 h-5 text-muted-foreground hover:text-primary",
-              isPending && "cursor-not-allowed"
+              isBusy && "cursor-not-allowed"
             )}
-            disabled={isPending}
+            disabled={isBusy}
             onClick={async (e) => {
               e.stopPropagation();
 

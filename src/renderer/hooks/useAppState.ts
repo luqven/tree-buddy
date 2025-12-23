@@ -20,6 +20,7 @@ export function useAppState() {
   const [state, setState] = useState<AppState>(defaultState);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [candidates, setCandidates] = useState<WorktreeCandidate[]>([]);
+  const [deletingPaths, setDeletingPaths] = useState<Set<string>>(new Set());
 
   // Load initial state, subscribe to updates, and trigger refresh on open
   useEffect(() => {
@@ -27,14 +28,35 @@ export function useAppState() {
     if (!api) return;
 
     // Get initial state
-    api.getState().then(setState);
+    api.getState().then((s) => {
+      setState(s);
+    });
 
     // Trigger throttled refresh on window open
     api.windowShown();
 
     // Subscribe to updates
-    const unsubscribe = api.onStateUpdate(setState);
-    return unsubscribe;
+    const unsubscribeState = api.onStateUpdate((s) => {
+      setState(s);
+    });
+
+    // Subscribe to deletion progress updates
+    const unsubscribeProgress = api.onDeletionProgress(({ path, status }) => {
+      if (status === 'started') {
+        setDeletingPaths(prev => new Set([...prev, path]));
+      } else {
+        setDeletingPaths(prev => {
+          const next = new Set(prev);
+          next.delete(path);
+          return next;
+        });
+      }
+    });
+
+    return () => {
+      unsubscribeState();
+      unsubscribeProgress();
+    };
   }, []);
 
   const refreshAll = useCallback(async () => {
@@ -56,16 +78,6 @@ export function useAppState() {
   const confirmAddProject = useCallback(async (path: string, name: string) => {
     await window.treeBuddy?.confirmAddProject(path, name);
     setShowAddDialog(false);
-    setCandidates([]);
-  }, []);
-
-  const cancelAddProject = useCallback(() => {
-    setShowAddDialog(false);
-    setCandidates([]);
-  }, []);
-
-  const pickDirectory = useCallback(async () => {
-    return await window.treeBuddy?.pickDirectory() ?? null;
   }, []);
 
   const removeProject = useCallback(async (id: string) => {
@@ -100,24 +112,14 @@ export function useAppState() {
 
   const cleanupAllUnprotected = useCallback(async () => {
     const items = getCleanupItems(state.cfg.projects, 'trash');
-    console.log('[cleanup] Identified items for trash cleanup:', items);
-
-    if (items.length === 0) {
-      console.log('[cleanup] No unprotected items found to delete.');
-      return;
-    }
+    if (items.length === 0) return;
 
     const confirmed = window.confirm(
       `Delete ${items.length} unprotected worktrees? Warning: This will delete unmerged worktrees.`
     );
-    if (!confirmed) {
-      console.log('[cleanup] User cancelled cleanup.');
-      return;
-    }
+    if (!confirmed) return;
 
-    console.log('[cleanup] Proceeding with deletion of items...');
-    const result = await window.treeBuddy?.deleteWorktrees(items);
-    console.log('[cleanup] Deletion result:', result);
+    await window.treeBuddy?.deleteWorktrees(items);
   }, [state.cfg.projects]);
 
   const updateConfig = useCallback(async (updates: Partial<Config>) => {
@@ -133,13 +135,12 @@ export function useAppState() {
     projects: state.cfg.projects,
     isRefreshing: state.isRefreshing,
     showAddDialog,
+    setShowAddDialog,
     candidates,
     refreshAll,
     refreshProject,
     addProject,
     confirmAddProject,
-    cancelAddProject,
-    pickDirectory,
     removeProject,
     openPath,
     showInFolder,
@@ -149,5 +150,6 @@ export function useAppState() {
     cleanupAllUnprotected,
     updateConfig,
     quit,
+    deletingPaths,
   };
 }
