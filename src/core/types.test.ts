@@ -83,5 +83,6 @@ describe('getCleanupItems', () => {
     expect(paths).toContain('/root/merged');
     expect(paths).not.toContain('/root/feat');
     expect(paths).toHaveLength(1);
+    expect(items[0].force).toBe(false);
   });
 });

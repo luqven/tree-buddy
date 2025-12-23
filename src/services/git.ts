@@ -29,16 +29,28 @@ function git(args: string, opts: ExecOpts): string {
 }
 
 /**
- * Execute git command asynchronously
+ * Execute git command asynchronously. Throws on error.
  */
 async function gitAsync(args: string, opts: ExecOpts): Promise<string> {
+  const cmd = `git ${args}`;
   try {
-    const { stdout } = await execAsync(`git ${args}`, {
+    const { stdout } = await execAsync(cmd, {
       cwd: opts.cwd,
       timeout: opts.timeout ?? 10000,
       encoding: 'utf-8',
     });
     return stdout.trim();
+  } catch (err: any) {
+    throw err;
+  }
+}
+
+/**
+ * Execute git command asynchronously. Returns empty string on error.
+ */
+async function gitSafeAsync(args: string, opts: ExecOpts): Promise<string> {
+  try {
+    return await gitAsync(args, opts);
   } catch {
     return '';
   }
@@ -194,8 +206,8 @@ export async function getStatusAsync(path: string): Promise<GitStatus> {
 
   // Run both commands in parallel
   const [diff, ab] = await Promise.all([
-    gitAsync('status --porcelain', { cwd: path }),
-    gitAsync('rev-list --left-right --count @{u}...HEAD', { cwd: path }),
+    gitSafeAsync('status --porcelain', { cwd: path }),
+    gitSafeAsync('rev-list --left-right --count @{u}...HEAD', { cwd: path }),
   ]);
 
   const dirty = diff.length > 0;
@@ -421,8 +433,9 @@ export async function unlockWorktreeAsync(worktreePath: string): Promise<void> {
 /**
  * Remove a worktree
  */
-export async function removeWorktreeAsync(repoRoot: string, worktreePath: string): Promise<void> {
-  await gitAsync(`worktree remove "${worktreePath}"`, { cwd: repoRoot });
+export async function removeWorktreeAsync(repoRoot: string, worktreePath: string, force = false): Promise<void> {
+  const args = force ? `worktree remove --force "${worktreePath}"` : `worktree remove "${worktreePath}"`;
+  await gitAsync(args, { cwd: repoRoot });
 }
 
 /**

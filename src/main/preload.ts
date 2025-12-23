@@ -19,8 +19,8 @@ export interface TreeBuddyAPI {
   pickDirectory: () => Promise<string | null>;
   confirmAddProject: (path: string, name: string) => Promise<Project>;
   quit: () => Promise<void>;
-  deleteWorktree: (root: string, path: string) => Promise<boolean>;
-  deleteWorktrees: (items: { root: string; path: string }[]) => Promise<boolean>;
+  deleteWorktree: (root: string, path: string, force?: boolean) => Promise<boolean>;
+  deleteWorktrees: (items: { root: string; path: string; force?: boolean }[]) => Promise<boolean>;
   lockWorktree: (path: string) => Promise<void>;
   unlockWorktree: (path: string) => Promise<void>;
   windowShown: () => Promise<void>;

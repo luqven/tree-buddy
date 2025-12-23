@@ -115,8 +115,8 @@ export function genId(): string {
 export function getCleanupItems(
   projects: Project[],
   type: 'broom' | 'trash'
-): { root: string; path: string }[] {
-  const items: { root: string; path: string }[] = [];
+): { root: string; path: string; force: boolean }[] {
+  const items: { root: string; path: string; force: boolean }[] = [];
   projects.forEach((p) => {
     p.branches.forEach((br) => {
       // Never delete main, current, or locked worktrees
@@ -125,11 +125,14 @@ export function getCleanupItems(
 
       if (type === 'broom') {
         if (br.cleanupIconType === 'broom') {
-          items.push({ root: p.root, path: br.path });
+          items.push({ root: p.root, path: br.path, force: false });
+        } else if (br.cleanupIconType === 'pencil') {
+          // merged but has uncommitted - we don't bulk cleanup these for safety
+          // unless it's trash
         }
       } else {
-        // trash deletes all unprotected
-        items.push({ root: p.root, path: br.path });
+        // trash deletes all unprotected, including dirty ones
+        items.push({ root: p.root, path: br.path, force: !!br.hasUncommitted });
       }
     });
   });

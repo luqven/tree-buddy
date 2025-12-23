@@ -100,14 +100,24 @@ export function useAppState() {
 
   const cleanupAllUnprotected = useCallback(async () => {
     const items = getCleanupItems(state.cfg.projects, 'trash');
-    if (items.length === 0) return;
+    console.log('[cleanup] Identified items for trash cleanup:', items);
+
+    if (items.length === 0) {
+      console.log('[cleanup] No unprotected items found to delete.');
+      return;
+    }
 
     const confirmed = window.confirm(
       `Delete ${items.length} unprotected worktrees? Warning: This will delete unmerged worktrees.`
     );
-    if (!confirmed) return;
+    if (!confirmed) {
+      console.log('[cleanup] User cancelled cleanup.');
+      return;
+    }
 
-    await window.treeBuddy?.deleteWorktrees(items);
+    console.log('[cleanup] Proceeding with deletion of items...');
+    const result = await window.treeBuddy?.deleteWorktrees(items);
+    console.log('[cleanup] Deletion result:', result);
   }, [state.cfg.projects]);
 
   const updateConfig = useCallback(async (updates: Partial<Config>) => {

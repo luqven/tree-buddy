@@ -80,26 +80,33 @@ export function initIpc(): void {
     app.quit();
   });
   // Delete a merged worktree
-  ipcMainHandleSafe('delete-worktree', async (_e, root: string, worktreePath: string) => {
+  ipcMainHandleSafe('delete-worktree', async (_e, root: string, worktreePath: string, force = false) => {
     if (process.env.NODE_ENV === 'test') return true;
     try {
-      await removeWorktreeAsync(root, worktreePath);
+      console.log(`[ipc] delete-worktree request: ${worktreePath} (force: ${force})`);
+      await removeWorktreeAsync(root, worktreePath, force);
       await refreshAllAsync(true);
       return true;
-    } catch {
+    } catch (err) {
+      console.error(`[ipc] delete-worktree failed:`, err);
       return false;
     }
   });
-  ipcMainHandleSafe('delete-worktrees', async (_e, items: { root: string; path: string }[]) => {
+  ipcMainHandleSafe('delete-worktrees', async (_e, items: { root: string; path: string; force?: boolean }[]) => {
+    console.log(`[ipc] delete-worktrees request received for ${items.length} items`);
     if (process.env.NODE_ENV === 'test') return true;
     let allOk = true;
     for (const item of items) {
       try {
-        await removeWorktreeAsync(item.root, item.path);
-      } catch {
+        console.log(`[ipc] attempting to remove worktree: ${item.path} from root: ${item.root} (force: ${!!item.force})`);
+        await removeWorktreeAsync(item.root, item.path, !!item.force);
+        console.log(`[ipc] successfully removed worktree: ${item.path}`);
+      } catch (err) {
+        console.error(`[ipc] failed to remove worktree ${item.path}:`, err);
         allOk = false;
       }
     }
+    console.log(`[ipc] all deletions finished, triggering refreshAll`);
     await refreshAllAsync(true);
     return allOk;
   });
