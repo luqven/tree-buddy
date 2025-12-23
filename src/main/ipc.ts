@@ -141,13 +141,18 @@ async function refreshAllAsync(force = false): Promise<void> {
   try {
     const updated: Project[] = [];
     for (const p of cfg.projects) {
+      console.log(`[refresh] starting project: ${p.name} (${p.root})`);
       try {
         const branches = await listWorktreesAsync(p.root);
+        console.log(`[refresh] found ${branches.length} worktrees for ${p.name}`);
         const refreshed = await refreshStatusesAsync(branches);
+        console.log(`[refresh] statuses refreshed for ${p.name}`);
 
         // Get main branch and merged branches for this project
         const mainBranch = await getMainBranchAsync(p.root);
+        console.log(`[refresh] main branch for ${p.name} is ${mainBranch}`);
         const mergedBranchNames = await getMergedBranchesAsync(p.root, mainBranch);
+        console.log(`[refresh] found ${mergedBranchNames.length} merged branches for ${p.name}`);
 
         // Enhance branches with merged and cleanup status
         const enhancedBranches = refreshed.map((br) => {
@@ -175,7 +180,9 @@ async function refreshAllAsync(force = false): Promise<void> {
         });
 
         updated.push({ ...p, branches: enhancedBranches, status: 'ok' as const, lastUpdated: Date.now() });
-      } catch {
+        console.log(`[refresh] project ${p.name} updated successfully`);
+      } catch (err) {
+        console.error(`[refresh] error updating project ${p.name}:`, err);
         updated.push({ ...p, status: 'error' as const, lastUpdated: Date.now() });
       }
     }
