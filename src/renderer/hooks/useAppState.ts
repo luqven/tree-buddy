@@ -87,6 +87,24 @@ export function useAppState() {
     await window.treeBuddy?.unlockWorktree(path);
   }, []);
 
+  const cleanupAllMerged = useCallback(async () => {
+    const items: { root: string; path: string }[] = [];
+    state.cfg.projects.forEach((p) => {
+      p.branches.forEach((br) => {
+        if (br.cleanupIconType === 'broom') {
+          items.push({ root: p.root, path: br.path });
+        }
+      });
+    });
+
+    if (items.length === 0) return;
+
+    const confirmed = window.confirm(`Delete ${items.length} merged worktrees?`);
+    if (!confirmed) return;
+
+    await window.treeBuddy?.deleteWorktrees(items);
+  }, [state.cfg.projects]);
+
   const updateConfig = useCallback(async (updates: Partial<Config>) => {
     await window.treeBuddy?.updateConfig(updates);
   }, []);
@@ -112,6 +130,7 @@ export function useAppState() {
     showInFolder,
     lockWorktree,
     unlockWorktree,
+    cleanupAllMerged,
     updateConfig,
     quit,
   };

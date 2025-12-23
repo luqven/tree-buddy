@@ -32,16 +32,12 @@ function git(args: string, opts: ExecOpts): string {
  * Execute git command asynchronously
  */
 async function gitAsync(args: string, opts: ExecOpts): Promise<string> {
-  try {
-    const { stdout } = await execAsync(`git ${args}`, {
-      cwd: opts.cwd,
-      timeout: opts.timeout ?? 5000,
-      encoding: 'utf-8',
-    });
-    return stdout.trim();
-  } catch {
-    return '';
-  }
+  const { stdout } = await execAsync(`git ${args}`, {
+    cwd: opts.cwd,
+    timeout: opts.timeout ?? 10000, // increased timeout
+    encoding: 'utf-8',
+  });
+  return stdout.trim();
 }
 
 /**

@@ -11,7 +11,6 @@ import {
   lockWorktreeAsync,
   unlockWorktreeAsync,
   removeWorktreeAsync,
-  getRepoRootAsync,
 } from '../services/git';
 import { load, save, addProject, rmProject, updateProject } from '../services/store';
 import { loadScanCache, saveScanCache, isCacheStale } from '../services/cache';
@@ -81,13 +80,28 @@ export function initIpc(): void {
     app.quit();
   });
   // Delete a merged worktree
-  ipcMainHandleSafe('delete-worktree', async (_e, worktreePath: string) => {
-    // test guard
-    if (process.env.NODE_ENV === 'test') {
+  ipcMainHandleSafe('delete-worktree', async (_e, root: string, worktreePath: string) => {
+    if (process.env.NODE_ENV === 'test') return true;
+    try {
+      await removeWorktreeAsync(root, worktreePath);
+      await refreshAllAsync(true);
       return true;
+    } catch {
+      return false;
     }
-    const ok = await deleteWorktreeAtPath(worktreePath);
-    return ok;
+  });
+  ipcMainHandleSafe('delete-worktrees', async (_e, items: { root: string; path: string }[]) => {
+    if (process.env.NODE_ENV === 'test') return true;
+    let allOk = true;
+    for (const item of items) {
+      try {
+        await removeWorktreeAsync(item.root, item.path);
+      } catch {
+        allOk = false;
+      }
+    }
+    await refreshAllAsync(true);
+    return allOk;
   });
   // Lock/unlock worktrees
   ipcMainHandleSafe('lock-worktree', async (_e, worktreePath: string) => {
@@ -105,27 +119,8 @@ export function initIpc(): void {
   });
 }
 
-export async function deleteWorktreeAtPath(worktreePath: string): Promise<boolean> {
-  // test guard
-  if (process.env.NODE_ENV === 'test') {
-    return true;
-  }
-  try {
-    const root = await getRepoRootAsync(worktreePath);
-    if (root) {
-      await removeWorktreeAsync(root, worktreePath);
-      await refreshAllAsync();
-      return true;
-    }
-    return false;
-  } catch {
-    return false;
-  }
-}
-
 // Helpers to register IPC handlers in a single place
 function ipcMainHandleSafe(channel: string, handler: (...args: any[]) => any) {
-  const { ipcMain } = require('electron');
   ipcMain.handle(channel, handler as any);
 }
 
@@ -138,8 +133,8 @@ async function refreshAllThrottledAsync(): Promise<void> {
   await refreshAllAsync();
 }
 
-async function refreshAllAsync(): Promise<void> {
-  if (isRefreshing) return;
+async function refreshAllAsync(force = false): Promise<void> {
+  if (isRefreshing && !force) return;
   isRefreshing = true;
   lastRefreshTs = Date.now();
   notifyRenderer();

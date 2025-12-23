@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { deleteWorktreeAtPath, initIpc } from './ipc';
-import { load, save } from '../services/store';
+import { ipcMain } from 'electron';
+import { initIpc } from './ipc';
 
 vi.mock('electron', () => ({
   ipcMain: {
@@ -13,15 +13,24 @@ vi.mock('electron', () => ({
   dialog: {
     showOpenDialog: vi.fn(),
   },
+  app: {
+    quit: vi.fn(),
+  },
   BrowserWindow: vi.fn(),
 }));
 
 vi.mock('../services/store', () => ({
-  load: vi.fn(),
+  load: vi.fn(() => ({ projects: [] })),
   save: vi.fn(),
   addProject: vi.fn(),
   rmProject: vi.fn(),
   updateProject: vi.fn(),
+}));
+
+vi.mock('../services/cache', () => ({
+  loadScanCache: vi.fn(),
+  saveScanCache: vi.fn(),
+  isCacheStale: vi.fn(),
 }));
 
 vi.mock('../services/git', () => ({
@@ -37,17 +46,20 @@ vi.mock('../services/git', () => ({
 }));
 
 describe('IPC / Main Process', () => {
-  describe('deleteWorktreeAtPath', () => {
-    it('returns true in test env', async () => {
-      process.env.NODE_ENV = 'test';
-      const res = await deleteWorktreeAtPath('/path/to/worktree');
-      expect(res).toBe(true);
+  beforeEach(() => {
+    vi.clearAllMocks();
+    initIpc();
+  });
+
+  describe('IPC registration', () => {
+    it('registers delete-worktrees handler', () => {
+      const registered = (ipcMain.handle as any).mock.calls.some((call: any) => call[0] === 'delete-worktrees');
+      expect(registered).toBe(true);
     });
 
-    it('would attempt deletion when not in test mode', async () => {
-      process.env.NODE_ENV = 'production';
-      const res = await deleteWorktreeAtPath('/path/to/nonexistent/worktree');
-      expect(res).toBe(false);
+    it('registers delete-worktree handler', () => {
+      const registered = (ipcMain.handle as any).mock.calls.some((call: any) => call[0] === 'delete-worktree');
+      expect(registered).toBe(true);
     });
   });
 });

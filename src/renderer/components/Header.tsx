@@ -1,4 +1,4 @@
-import { Gear, ArrowsClockwise, Plus, Power } from '@phosphor-icons/react';
+import { Gear, ArrowsClockwise, Plus, Power, Broom } from '@phosphor-icons/react';
 import { Button } from './ui/button';
 import { useAppState } from '../hooks/useAppState';
 
@@ -10,11 +10,15 @@ interface HeaderProps {
 }
 
 export function Header({ view, onViewChange }: HeaderProps) {
-  const { isRefreshing, refreshAll, addProject, quit } = useAppState();
+  const { isRefreshing, projects, refreshAll, addProject, cleanupAllMerged, quit } = useAppState();
 
   const handleAdd = async () => {
     await addProject();
   };
+
+  const mergedCount = projects.reduce((acc, p) => {
+    return acc + p.branches.filter(br => br.cleanupIconType === 'broom').length;
+  }, 0);
 
   return (
     <header className="flex items-center justify-between px-3 py-2 border-b border-border">
@@ -26,6 +30,15 @@ export function Header({ view, onViewChange }: HeaderProps) {
           title="Add Project"
         >
           <Plus size={16} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={cleanupAllMerged}
+          disabled={mergedCount === 0 || isRefreshing}
+          title={mergedCount > 0 ? `Cleanup ${mergedCount} merged worktrees` : "No merged worktrees to cleanup"}
+        >
+          <Broom size={16} />
         </Button>
         <Button
           variant="ghost"

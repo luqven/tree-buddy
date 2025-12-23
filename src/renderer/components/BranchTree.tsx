@@ -27,6 +27,7 @@ export function BranchTree({ project }: BranchTreeProps) {
         <ScopeNodeItem
           key={node.name + i}
           node={node}
+          projectRoot={project.root}
           onOpen={openPath}
         />
       ))}
@@ -36,17 +37,18 @@ export function BranchTree({ project }: BranchTreeProps) {
 
 interface ScopeNodeItemProps {
   node: ScopeNode;
+  projectRoot: string;
   onOpen: (path: string) => void;
 }
 
-function ScopeNodeItem({ node, onOpen }: ScopeNodeItemProps) {
+function ScopeNodeItem({ node, projectRoot, onOpen }: ScopeNodeItemProps) {
   const [expanded, setExpanded] = useState(false);
   const hasChildren = node.children.length > 0;
   const hasBranch = !!node.branch;
 
   // Leaf node with branch - show as branch item
   if (hasBranch && !hasChildren) {
-    return <BranchItem branch={node.branch!} onOpen={onOpen} />;
+    return <BranchItem branch={node.branch!} projectRoot={projectRoot} onOpen={onOpen} />;
   }
 
   // Scope folder with children
@@ -74,12 +76,13 @@ function ScopeNodeItem({ node, onOpen }: ScopeNodeItemProps) {
           <div className="ml-3 border-l border-border">
             {/* If scope itself is also a branch, show it first */}
             {hasBranch && (
-              <BranchItem branch={node.branch!} onOpen={onOpen} />
+              <BranchItem branch={node.branch!} projectRoot={projectRoot} onOpen={onOpen} />
             )}
             {node.children.map((child, i) => (
               <ScopeNodeItem
                 key={child.name + i}
                 node={child}
+                projectRoot={projectRoot}
                 onOpen={onOpen}
               />
             ))}
@@ -91,7 +94,7 @@ function ScopeNodeItem({ node, onOpen }: ScopeNodeItemProps) {
 
   // Branch without children
   if (hasBranch) {
-    return <BranchItem branch={node.branch!} onOpen={onOpen} />;
+    return <BranchItem branch={node.branch!} projectRoot={projectRoot} onOpen={onOpen} />;
   }
 
   return null;
@@ -99,10 +102,11 @@ function ScopeNodeItem({ node, onOpen }: ScopeNodeItemProps) {
 
 interface BranchItemProps {
   branch: Branch;
+  projectRoot: string;
   onOpen: (path: string) => void;
 }
 
-function BranchItem({ branch, onOpen }: BranchItemProps) {
+function BranchItem({ branch, projectRoot, onOpen }: BranchItemProps) {
   const { lockWorktree, unlockWorktree } = useAppState();
   const [isPending, setIsPending] = useState(false);
   const status = toSyncStatus(branch.status);
@@ -177,7 +181,7 @@ function BranchItem({ branch, onOpen }: BranchItemProps) {
 
               setIsPending(true);
               try {
-                const ok = await window.treeBuddy.deleteWorktree(branch.path);
+                const ok = await window.treeBuddy.deleteWorktree(projectRoot, branch.path);
                 if (!ok) setIsPending(false);
               } catch {
                 setIsPending(false);
