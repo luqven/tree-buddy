@@ -16,6 +16,7 @@ import {
   getMainBranchAsync,
   getMergedBranchesAsync,
   removeWorktreeAsync,
+  pruneWorktreesAsync,
 } from './git';
 
 describe('git service', () => {
@@ -220,6 +221,47 @@ describe('git service', () => {
 
       wts = await listWorktreesAsync(wt1);
       expect(wts.some(w => w.path.includes('wt-to-remove-3'))).toBe(false);
+    });
+
+    it('handles high throughput deletion', async () => {
+      const count = 10;
+      const paths: string[] = [];
+      for (let i = 0; i < count; i++) {
+        const p = join(tmp, `wt-stress-${i}`);
+        execSync(`git worktree add "${p}" -b stress-${i}`, { cwd: wt1 });
+        paths.push(p);
+      }
+
+      let wts = await listWorktreesAsync(wt1);
+      expect(wts.length).toBeGreaterThanOrEqual(count);
+
+      // Delete all in parallel (simulating stress)
+      await Promise.all(paths.map(p => removeWorktreeAsync(wt1, p)));
+
+      wts = await listWorktreesAsync(wt1);
+      for (const p of paths) {
+        expect(wts.some(w => w.path === p)).toBe(false);
+      }
+    });
+
+    it('handles corrupted worktrees (metadata exists but folder is gone)', async () => {
+      const wtCorrupt = join(tmp, 'wt-corrupt');
+      execSync(`git worktree add "${wtCorrupt}" -b corrupt`, { cwd: wt1 });
+      
+      // Manually delete the directory but keep git metadata
+      rmSync(wtCorrupt, { recursive: true, force: true });
+
+      // listWorktrees should still see it
+      let wts = await listWorktreesAsync(wt1);
+      const paths = wts.map(w => w.path);
+      // We use includes because git might have normalized the path (e.g. /private/var on macOS)
+      expect(paths.some(p => p.includes('wt-corrupt'))).toBe(true);
+
+      // pruneWorktrees should clean it up
+      await pruneWorktreesAsync(wt1);
+
+      wts = await listWorktreesAsync(wt1);
+      expect(wts.some(p => p.path.includes('wt-corrupt'))).toBe(false);
     });
   });
 
