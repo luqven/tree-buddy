@@ -444,7 +444,7 @@ export async function unlockWorktreeAsync(worktreePath: string): Promise<void> {
  */
 export async function removeWorktreeAsync(repoRoot: string, worktreePath: string, force = false): Promise<void> {
   const args = force ? `worktree remove --force "${worktreePath}"` : `worktree remove "${worktreePath}"`;
-  await gitAsync(args, { cwd: repoRoot });
+  await gitAsync(args, { cwd: repoRoot, timeout: 30000 });
 }
 
 /**

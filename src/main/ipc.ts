@@ -23,6 +23,7 @@ const SCAN_CACHE_TTL = 5 * 60 * 1000; // 5 minutes for scan cache
 
 let cfg: Config;
 let isRefreshing = false;
+let isBulkOperating = false;
 let lastRefreshTs = 0;
 let mainWindow: BrowserWindow | null = null;
 
@@ -35,7 +36,7 @@ function notifyRenderer() {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('state-update', {
       cfg,
-      isRefreshing,
+      isRefreshing: isRefreshing || isBulkOperating,
     });
   }
 }
@@ -96,17 +97,26 @@ export function initIpc(): void {
   ipcMainHandleSafe('delete-worktrees', async (_e, items: { root: string; path: string; force?: boolean }[]) => {
     log(`[ipc] delete-worktrees request received for ${items.length} items`);
     if (process.env.NODE_ENV === 'test') return true;
+    
+    isBulkOperating = true;
+    notifyRenderer(); // inform UI we are busy
+
     let allOk = true;
-    for (const item of items) {
-      try {
-        log(`[ipc] attempting to remove worktree: ${item.path} from root: ${item.root} (force: ${!!item.force})`);
-        await removeWorktreeAsync(item.root, item.path, !!item.force);
-        log(`[ipc] successfully removed worktree: ${item.path}`);
-      } catch (err) {
-        logError(`[ipc] failed to remove worktree ${item.path}:`, err);
-        allOk = false;
+    try {
+      for (const item of items) {
+        try {
+          log(`[ipc] attempting to remove worktree: ${item.path} from root: ${item.root} (force: ${!!item.force})`);
+          await removeWorktreeAsync(item.root, item.path, !!item.force);
+          log(`[ipc] successfully removed worktree: ${item.path}`);
+        } catch (err) {
+          logError(`[ipc] failed to remove worktree ${item.path}:`, err);
+          allOk = false;
+        }
       }
+    } finally {
+      isBulkOperating = false;
     }
+
     log(`[ipc] all deletions finished, triggering refreshAll`);
     await refreshAllAsync(true);
     return allOk;
@@ -142,6 +152,7 @@ async function refreshAllThrottledAsync(): Promise<void> {
 }
 
 async function refreshAllAsync(force = false): Promise<void> {
+  if (isBulkOperating && !force) return;
   if (isRefreshing && !force) return;
   isRefreshing = true;
   lastRefreshTs = Date.now();

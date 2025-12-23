@@ -28,8 +28,13 @@ export function log(message: string, ...args: any[]) {
 
 export function logError(message: string, error?: any) {
   const timestamp = new Date().toISOString();
-  const errorDetails = error ? (error.stack || JSON.stringify(error, null, 2)) : '';
-  const entry = `[${timestamp}] ERROR: ${message}\n${errorDetails}\n`;
+  let details = '';
+  if (error) {
+    if (error.stack) details += error.stack;
+    if (error.stderr) details += `\nSTDERR: ${error.stderr}`;
+    if (!error.stack && !error.stderr) details += JSON.stringify(error, null, 2);
+  }
+  const entry = `[${timestamp}] ERROR: ${message}\n${details}\n`;
   
   console.error(message, error);
 
