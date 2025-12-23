@@ -1,4 +1,4 @@
-import { Gear, ArrowsClockwise, Plus, Power, Broom } from '@phosphor-icons/react';
+import { Gear, ArrowsClockwise, Plus, Power, Broom, Trash } from '@phosphor-icons/react';
 import { Button } from './ui/button';
 import { useAppState } from '../hooks/useAppState';
 
@@ -10,7 +10,7 @@ interface HeaderProps {
 }
 
 export function Header({ view, onViewChange }: HeaderProps) {
-  const { isRefreshing, projects, refreshAll, addProject, cleanupAllMerged, quit } = useAppState();
+  const { isRefreshing, projects, refreshAll, addProject, cleanupAllMerged, cleanupAllUnprotected, quit } = useAppState();
 
   const handleAdd = async () => {
     await addProject();
@@ -18,6 +18,10 @@ export function Header({ view, onViewChange }: HeaderProps) {
 
   const mergedCount = projects.reduce((acc, p) => {
     return acc + p.branches.filter(br => br.cleanupIconType === 'broom').length;
+  }, 0);
+
+  const unprotectedCount = projects.reduce((acc, p) => {
+    return acc + p.branches.filter(br => !br.locked && !br.isMain && !br.isCurrent).length;
   }, 0);
 
   return (
@@ -51,6 +55,16 @@ export function Header({ view, onViewChange }: HeaderProps) {
           title={mergedCount > 0 ? `Cleanup ${mergedCount} merged worktrees` : "No merged worktrees to cleanup"}
         >
           <Broom size={16} />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={cleanupAllUnprotected}
+          disabled={unprotectedCount === 0 || isRefreshing}
+          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+          title={unprotectedCount > 0 ? `Delete ${unprotectedCount} unprotected worktrees` : "No unprotected worktrees to cleanup"}
+        >
+          <Trash size={16} />
         </Button>
       </div>
 

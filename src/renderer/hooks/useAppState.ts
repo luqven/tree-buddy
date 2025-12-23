@@ -105,6 +105,26 @@ export function useAppState() {
     await window.treeBuddy?.deleteWorktrees(items);
   }, [state.cfg.projects]);
 
+  const cleanupAllUnprotected = useCallback(async () => {
+    const items: { root: string; path: string }[] = [];
+    state.cfg.projects.forEach((p) => {
+      p.branches.forEach((br) => {
+        if (!br.locked && !br.isMain && !br.isCurrent) {
+          items.push({ root: p.root, path: br.path });
+        }
+      });
+    });
+
+    if (items.length === 0) return;
+
+    const confirmed = window.confirm(
+      `Delete ${items.length} unprotected worktrees? Warning: This will delete unmerged worktrees.`
+    );
+    if (!confirmed) return;
+
+    await window.treeBuddy?.deleteWorktrees(items);
+  }, [state.cfg.projects]);
+
   const updateConfig = useCallback(async (updates: Partial<Config>) => {
     await window.treeBuddy?.updateConfig(updates);
   }, []);
@@ -131,6 +151,7 @@ export function useAppState() {
     lockWorktree,
     unlockWorktree,
     cleanupAllMerged,
+    cleanupAllUnprotected,
     updateConfig,
     quit,
   };
