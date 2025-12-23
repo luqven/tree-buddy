@@ -8,7 +8,15 @@ const LOG_FILE = process.env.NODE_ENV === 'test'
   ? join(process.cwd(), 'test.log')
   : join(process.cwd(), 'app.log');
 
+function isVerbose(): boolean {
+  // Always verbose in test mode
+  if (process.env.NODE_ENV === 'test') return true;
+  return app.commandLine.hasSwitch('verbose');
+}
+
 export function log(message: string, ...args: any[]) {
+  if (!isVerbose()) return;
+
   const timestamp = new Date().toISOString();
   const formattedArgs = args.length > 0 ? ' ' + args.map(a => 
     typeof a === 'object' ? JSON.stringify(a, null, 2) : String(a)
@@ -27,6 +35,15 @@ export function log(message: string, ...args: any[]) {
 }
 
 export function logError(message: string, error?: any) {
+  // We still want to see errors even if not verbose? 
+  // User asked "make our logger optional", usually implying both logs and errors if they are part of the "logger".
+  // But usually logError should always be visible. 
+  // Let's stick to the request: "make our logger optional".
+  if (!isVerbose()) {
+    console.error(message, error);
+    return;
+  }
+
   const timestamp = new Date().toISOString();
   let details = '';
   if (error) {
