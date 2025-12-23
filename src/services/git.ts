@@ -3,6 +3,7 @@ import { promisify } from 'util';
 import { existsSync, readdirSync, statSync, readFileSync, promises as fs } from 'fs';
 import { join, basename, dirname } from 'path';
 import { WorktreeCandidate, Branch, GitStatus } from '../core/types';
+import { log, logError } from '../main/logger';
 
 const execAsync = promisify(exec);
 
@@ -41,6 +42,10 @@ async function gitAsync(args: string, opts: ExecOpts): Promise<string> {
     });
     return stdout.trim();
   } catch (err: any) {
+    // Only log if it's not a common/expected error like missing upstream
+    if (!cmd.includes('rev-list') && !cmd.includes('show-ref')) {
+      logError(`[git] command failed: ${cmd} in ${opts.cwd}`, err);
+    }
     throw err;
   }
 }
@@ -51,7 +56,11 @@ async function gitAsync(args: string, opts: ExecOpts): Promise<string> {
 async function gitSafeAsync(args: string, opts: ExecOpts): Promise<string> {
   try {
     return await gitAsync(args, opts);
-  } catch {
+  } catch (err: any) {
+    const cmd = `git ${args}`;
+    if (!cmd.includes('rev-list') && !cmd.includes('show-ref')) {
+      logError(`[git] safe command failed (returning empty): ${cmd}`, err);
+    }
     return '';
   }
 }

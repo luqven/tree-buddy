@@ -14,6 +14,7 @@ import {
 } from '../services/git';
 import { load, save, addProject, rmProject, updateProject } from '../services/store';
 import { loadScanCache, saveScanCache, isCacheStale } from '../services/cache';
+import { log, logError } from './logger';
 
 // nicer throttling and polling constants
 const DOCS_PATH = join(homedir(), 'Documents');
@@ -83,30 +84,30 @@ export function initIpc(): void {
   ipcMainHandleSafe('delete-worktree', async (_e, root: string, worktreePath: string, force = false) => {
     if (process.env.NODE_ENV === 'test') return true;
     try {
-      console.log(`[ipc] delete-worktree request: ${worktreePath} (force: ${force})`);
+      log(`[ipc] delete-worktree request: ${worktreePath} (force: ${force})`);
       await removeWorktreeAsync(root, worktreePath, force);
       await refreshAllAsync(true);
       return true;
     } catch (err) {
-      console.error(`[ipc] delete-worktree failed:`, err);
+      logError(`[ipc] delete-worktree failed:`, err);
       return false;
     }
   });
   ipcMainHandleSafe('delete-worktrees', async (_e, items: { root: string; path: string; force?: boolean }[]) => {
-    console.log(`[ipc] delete-worktrees request received for ${items.length} items`);
+    log(`[ipc] delete-worktrees request received for ${items.length} items`);
     if (process.env.NODE_ENV === 'test') return true;
     let allOk = true;
     for (const item of items) {
       try {
-        console.log(`[ipc] attempting to remove worktree: ${item.path} from root: ${item.root} (force: ${!!item.force})`);
+        log(`[ipc] attempting to remove worktree: ${item.path} from root: ${item.root} (force: ${!!item.force})`);
         await removeWorktreeAsync(item.root, item.path, !!item.force);
-        console.log(`[ipc] successfully removed worktree: ${item.path}`);
+        log(`[ipc] successfully removed worktree: ${item.path}`);
       } catch (err) {
-        console.error(`[ipc] failed to remove worktree ${item.path}:`, err);
+        logError(`[ipc] failed to remove worktree ${item.path}:`, err);
         allOk = false;
       }
     }
-    console.log(`[ipc] all deletions finished, triggering refreshAll`);
+    log(`[ipc] all deletions finished, triggering refreshAll`);
     await refreshAllAsync(true);
     return allOk;
   });
@@ -148,18 +149,18 @@ async function refreshAllAsync(force = false): Promise<void> {
   try {
     const updated: Project[] = [];
     for (const p of cfg.projects) {
-      console.log(`[refresh] starting project: ${p.name} (${p.root})`);
+      log(`[refresh] starting project: ${p.name} (${p.root})`);
       try {
         const branches = await listWorktreesAsync(p.root);
-        console.log(`[refresh] found ${branches.length} worktrees for ${p.name}`);
+        log(`[refresh] found ${branches.length} worktrees for ${p.name}`);
         const refreshed = await refreshStatusesAsync(branches);
-        console.log(`[refresh] statuses refreshed for ${p.name}`);
+        log(`[refresh] statuses refreshed for ${p.name}`);
 
         // Get main branch and merged branches for this project
         const mainBranch = await getMainBranchAsync(p.root);
-        console.log(`[refresh] main branch for ${p.name} is ${mainBranch}`);
+        log(`[refresh] main branch for ${p.name} is ${mainBranch}`);
         const mergedBranchNames = await getMergedBranchesAsync(p.root, mainBranch);
-        console.log(`[refresh] found ${mergedBranchNames.length} merged branches for ${p.name}`);
+        log(`[refresh] found ${mergedBranchNames.length} merged branches for ${p.name}`);
 
         // Enhance branches with merged and cleanup status
         const enhancedBranches = refreshed.map((br) => {
@@ -187,9 +188,9 @@ async function refreshAllAsync(force = false): Promise<void> {
         });
 
         updated.push({ ...p, branches: enhancedBranches, status: 'ok' as const, lastUpdated: Date.now() });
-        console.log(`[refresh] project ${p.name} updated successfully`);
+        log(`[refresh] project ${p.name} updated successfully`);
       } catch (err) {
-        console.error(`[refresh] error updating project ${p.name}:`, err);
+        logError(`[refresh] error updating project ${p.name}:`, err);
         updated.push({ ...p, status: 'error' as const, lastUpdated: Date.now() });
       }
     }
