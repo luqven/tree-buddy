@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { execSync } from 'child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { mkdtempSync, rmSync, writeFileSync, realpathSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
 import {
@@ -15,6 +15,7 @@ import {
   refreshStatusesAsync,
   getMainBranchAsync,
   getMergedBranchesAsync,
+  removeWorktreeAsync,
 } from './git';
 
 describe('git service', () => {
@@ -203,6 +204,22 @@ describe('git service', () => {
       await unlockWorktreeAsync(wt2);
       wts = await listWorktreesAsync(wt1);
       expect(wts.find(w => w.name === 'feature')?.locked).toBe(false);
+    });
+  });
+
+  describe('removeWorktreeAsync', () => {
+    it('removes a worktree', async () => {
+      const wt3 = join(tmp, 'wt-to-remove-3');
+      execSync(`git worktree add "${wt3}" -b to-remove-3`, { cwd: wt1 });
+      
+      let wts = await listWorktreesAsync(wt1);
+      // Check if it exists by looking for the directory name in the paths
+      expect(wts.some(w => w.path.includes('wt-to-remove-3'))).toBe(true);
+
+      await removeWorktreeAsync(wt1, wt3);
+
+      wts = await listWorktreesAsync(wt1);
+      expect(wts.some(w => w.path.includes('wt-to-remove-3'))).toBe(false);
     });
   });
 

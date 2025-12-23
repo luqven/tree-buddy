@@ -107,3 +107,31 @@ export function defaultConfig(): Config {
 export function genId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
+
+/**
+ * Identify worktrees that can be safely deleted (not main, not locked, not current)
+ * If type is 'broom', only include those with cleanupIconType === 'broom'
+ */
+export function getCleanupItems(
+  projects: Project[],
+  type: 'broom' | 'trash'
+): { root: string; path: string }[] {
+  const items: { root: string; path: string }[] = [];
+  projects.forEach((p) => {
+    p.branches.forEach((br) => {
+      // Never delete main, current, or locked worktrees
+      const isProtected = br.isMain || br.isCurrent || br.locked;
+      if (isProtected) return;
+
+      if (type === 'broom') {
+        if (br.cleanupIconType === 'broom') {
+          items.push({ root: p.root, path: br.path });
+        }
+      } else {
+        // trash deletes all unprotected
+        items.push({ root: p.root, path: br.path });
+      }
+    });
+  });
+  return items;
+}

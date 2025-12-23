@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Config, Project, WorktreeCandidate } from '@core/types';
+import type { Config, WorktreeCandidate } from '@core/types';
+import { getCleanupItems } from '@core/types';
 
 interface AppState {
   cfg: Config;
@@ -88,15 +89,7 @@ export function useAppState() {
   }, []);
 
   const cleanupAllMerged = useCallback(async () => {
-    const items: { root: string; path: string }[] = [];
-    state.cfg.projects.forEach((p) => {
-      p.branches.forEach((br) => {
-        if (br.cleanupIconType === 'broom') {
-          items.push({ root: p.root, path: br.path });
-        }
-      });
-    });
-
+    const items = getCleanupItems(state.cfg.projects, 'broom');
     if (items.length === 0) return;
 
     const confirmed = window.confirm(`Delete ${items.length} merged worktrees?`);
@@ -106,15 +99,7 @@ export function useAppState() {
   }, [state.cfg.projects]);
 
   const cleanupAllUnprotected = useCallback(async () => {
-    const items: { root: string; path: string }[] = [];
-    state.cfg.projects.forEach((p) => {
-      p.branches.forEach((br) => {
-        if (!br.locked && !br.isMain && !br.isCurrent) {
-          items.push({ root: p.root, path: br.path });
-        }
-      });
-    });
-
+    const items = getCleanupItems(state.cfg.projects, 'trash');
     if (items.length === 0) return;
 
     const confirmed = window.confirm(
