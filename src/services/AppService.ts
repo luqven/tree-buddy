@@ -1,4 +1,4 @@
-import { Config, Project, WorktreeCandidate, PlatformAdapter, Branch } from '../core/types';
+import { Config, Project, WorktreeCandidate, PlatformAdapter, Branch } from '../core/types.js';
 import {
   listWorktreesAsync,
   refreshStatusesAsync,
@@ -9,10 +9,10 @@ import {
   unlockWorktreeAsync,
   removeWorktreeAsync,
   pruneWorktreesAsync,
-} from './git';
-import { load, save, addProject, rmProject, updateProject } from './store';
-import { loadScanCache, saveScanCache, isCacheStale } from './cache';
-import { log, logError } from '../main/logger';
+} from './git.js';
+import { load, save, addProject, rmProject, updateProject } from './store.js';
+import { loadScanCache, saveScanCache, isCacheStale } from './cache.js';
+import { log, logError } from '../main/logger.js';
 
 export interface AppState {
   cfg: Config;

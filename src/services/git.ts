@@ -2,8 +2,8 @@ import { execSync, exec } from 'child_process';
 import { promisify } from 'util';
 import { existsSync, readdirSync, statSync, readFileSync, promises as fs } from 'fs';
 import { join, basename, dirname } from 'path';
-import { WorktreeCandidate, Branch, GitStatus } from '../core/types';
-import { log, logError } from '../main/logger';
+import { WorktreeCandidate, Branch, GitStatus } from '../core/types.js';
+import { log, logError } from '../main/logger.js';
 
 const execAsync = promisify(exec);
 

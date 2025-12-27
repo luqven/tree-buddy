@@ -1,6 +1,10 @@
 import { app, Tray, BrowserWindow, nativeImage, screen } from 'electron';
-import { join } from 'path';
-import { initIpc, setMainWindow } from './ipc';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { initIpc, setMainWindow } from './ipc.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const WINDOW_WIDTH = 320;
 const WINDOW_HEIGHT = 480;

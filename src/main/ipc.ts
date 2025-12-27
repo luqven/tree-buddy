@@ -1,9 +1,9 @@
 import { ipcMain, shell, dialog, BrowserWindow, app } from 'electron';
 import { homedir } from 'os';
 import { join } from 'path';
-import { Config, Project, PlatformAdapter } from '../core/types';
-import { AppService } from '../services/AppService';
-import { log } from './logger';
+import { Config, Project, PlatformAdapter } from '../core/types.js';
+import { AppService } from '../services/AppService.js';
+import { log } from './logger.js';
 
 let service: AppService;
 let mainWindow: BrowserWindow | null = null;

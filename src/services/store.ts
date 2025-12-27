@@ -1,8 +1,8 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { homedir } from 'os';
-import { Config, Project, defaultConfig, genId } from '../core/types';
-import { listWorktrees } from './git';
+import { Config, Project, defaultConfig, genId } from '../core/types.js';
+import { listWorktrees } from './git.js';
 
 /**
  * Get config file path
