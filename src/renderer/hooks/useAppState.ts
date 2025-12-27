@@ -92,6 +92,10 @@ export function useAppState() {
     await window.treeBuddy?.showInFolder(path);
   }, []);
 
+  const openInTerminal = useCallback(async (path: string) => {
+    await window.treeBuddy?.openInTerminal(path);
+  }, []);
+
   const lockWorktree = useCallback(async (path: string) => {
     await window.treeBuddy?.lockWorktree(path);
   }, []);
@@ -144,6 +148,7 @@ export function useAppState() {
     removeProject,
     openPath,
     showInFolder,
+    openInTerminal,
     lockWorktree,
     unlockWorktree,
     cleanupAllMerged,

@@ -14,6 +14,7 @@ export interface TreeBuddyAPI {
   removeProject: (id: string) => Promise<void>;
   openPath: (path: string) => Promise<void>;
   showInFolder: (path: string) => Promise<void>;
+  openInTerminal: (path: string) => Promise<void>;
   updateConfig: (updates: Partial<Config>) => Promise<void>;
   getCandidates: () => Promise<WorktreeCandidate[]>;
   pickDirectory: () => Promise<string | null>;
@@ -36,6 +37,7 @@ const api: TreeBuddyAPI = {
   removeProject: (id) => ipcRenderer.invoke('remove-project', id),
   openPath: (path) => ipcRenderer.invoke('open-path', path),
   showInFolder: (path) => ipcRenderer.invoke('show-in-folder', path),
+  openInTerminal: (path) => ipcRenderer.invoke('open-in-terminal', path),
   updateConfig: (updates) => ipcRenderer.invoke('update-config', updates),
   getCandidates: () => ipcRenderer.invoke('get-candidates'),
   pickDirectory: () => ipcRenderer.invoke('pick-directory'),
