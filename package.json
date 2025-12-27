@@ -6,7 +6,7 @@
   "main": "dist/main/index.js",
   "scripts": {
     "build": "npm run build:main && npm run build:renderer",
-    "build:main": "tsc -p tsconfig.main.json",
+    "build:main": "tsc -p tsconfig.main.json && tsc -p tsconfig.preload.json && cp dist-preload/main/preload.js dist/main/preload.js",
     "build:renderer": "vite build",
     "dev:renderer": "vite",
     "cli": "tsx src/cli/index.tsx",

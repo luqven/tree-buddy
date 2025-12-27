@@ -1,5 +1,8 @@
 import { appendFileSync } from 'fs';
 import { join } from 'path';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
 let electronApp: any = null;
 try {
   electronApp = require('electron').app;
