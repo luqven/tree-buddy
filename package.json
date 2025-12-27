@@ -2,6 +2,7 @@
   "name": "tree-buddy",
   "version": "0.1.0",
   "description": "macOS menubar app for managing git worktrees",
+  "type": "module",
   "main": "dist/main/index.js",
   "scripts": {
     "build": "npm run build:main && npm run build:renderer",
@@ -9,6 +10,7 @@
     "build:renderer": "vite build",
     "dev:renderer": "vite",
     "cli": "tsx src/cli/index.tsx",
+    "cli:bun": "bun src/cli/index.tsx",
     "start": "npm run build && electron .",
     "test": "vitest --root . run",
     "test:watch": "vitest --root . watch"

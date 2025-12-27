@@ -1,3 +1,6 @@
+/**
+ * @vitest-environment jsdom
+ */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
 import { render } from '@testing-library/react';
@@ -36,9 +39,13 @@ describe('App TUI component', () => {
 
   it('triggers refresh on mount', () => {
     const refreshSpy = vi.spyOn(service, 'refreshAllThrottled');
-    // We can't easily 'render' to a real terminal here, but we can check if the hook was called
-    // if we were to use a real testing library for OpenTUI.
-    // For now, let's just check if the service is defined.
-    expect(service).toBeDefined();
+    render(<App service={service} />);
+    expect(refreshSpy).toHaveBeenCalled();
+  });
+
+  it('subscribes to service on mount', () => {
+    const subscribeSpy = vi.spyOn(service, 'subscribe');
+    render(<App service={service} />);
+    expect(subscribeSpy).toHaveBeenCalled();
   });
 });
