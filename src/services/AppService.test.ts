@@ -34,7 +34,8 @@ describe('AppService', () => {
       scopeEnabled: true,
     });
 
-    service = new AppService(adapter, onUpdate);
+    service = new AppService(adapter);
+    service.subscribe(onUpdate);
   });
 
   it('initializes with loaded config', () => {
@@ -49,9 +50,11 @@ describe('AppService', () => {
       scopeDelim: '/',
       scopeEnabled: true,
     });
-    service = new AppService(adapter, onUpdate);
+    service = new AppService(adapter);
+    service.subscribe(onUpdate);
 
     vi.mocked(git.listWorktreesAsync).mockResolvedValue([{ name: 'main', path: '/r1', status: { ahead: 0, behind: 0, dirty: false, ts: 0 }, isMain: true }]);
+
     vi.mocked(git.refreshStatusesAsync).mockImplementation(async (b) => b);
     vi.mocked(git.getMainBranchAsync).mockResolvedValue('main');
     vi.mocked(git.getMergedBranchesAsync).mockResolvedValue([]);

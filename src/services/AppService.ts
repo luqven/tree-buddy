@@ -27,13 +27,20 @@ export class AppService {
   private isRefreshing = false;
   private isBulkOperating = false;
   private lastRefreshTs = 0;
-  private onUpdate: (state: AppState) => void;
+  private listeners: ((state: AppState) => void)[] = [];
   private adapter: PlatformAdapter;
 
-  constructor(adapter: PlatformAdapter, onUpdate: (state: AppState) => void) {
+  constructor(adapter: PlatformAdapter) {
     this.adapter = adapter;
-    this.onUpdate = onUpdate;
     this.cfg = load();
+  }
+
+  subscribe(l: (state: AppState) => void) {
+    this.listeners.push(l);
+    l(this.getState());
+    return () => {
+      this.listeners = this.listeners.filter((x) => x !== l);
+    };
   }
 
   getState(): AppState {
@@ -44,7 +51,8 @@ export class AppService {
   }
 
   private notify() {
-    this.onUpdate(this.getState());
+    const state = this.getState();
+    this.listeners.forEach((l) => l(state));
   }
 
   async refreshAllThrottled(force = false): Promise<void> {

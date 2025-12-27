@@ -32,7 +32,8 @@ function notifyRenderer() {
 }
 
 export function initIpc(): void {
-  service = new AppService(electronAdapter, () => {
+  service = new AppService(electronAdapter);
+  service.subscribe(() => {
     notifyRenderer();
   });
 
