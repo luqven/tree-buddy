@@ -109,6 +109,18 @@ export function genId(): string {
 }
 
 /**
+ * Platform-specific operations that differ between Electron and CLI
+ */
+export interface PlatformAdapter {
+  openPath(path: string): Promise<void>;
+  showItemInFolder(path: string): Promise<void>;
+  trashItem(path: string): Promise<void>;
+  openTerminal(path: string): Promise<void>;
+  getDocumentsPath(): string;
+  quit(): void;
+}
+
+/**
  * Identify worktrees that can be safely deleted (not main, not locked, not current)
  * If type is 'broom', only include those with cleanupIconType === 'broom'
  */

@@ -1,6 +1,11 @@
 import { appendFileSync } from 'fs';
 import { join } from 'path';
-import { app } from 'electron';
+let electronApp: any = null;
+try {
+  electronApp = require('electron').app;
+} catch {
+  // Not in electron
+}
 
 // For development, we'll log to the project root.
 // In production, we'd use app.getPath('userData').
@@ -11,7 +16,14 @@ const LOG_FILE = process.env.NODE_ENV === 'test'
 function isVerbose(): boolean {
   // Always verbose in test mode
   if (process.env.NODE_ENV === 'test') return true;
-  return app.commandLine.hasSwitch('verbose');
+  
+  // Check if running in Electron and has --verbose
+  if (electronApp) {
+    return electronApp.commandLine.hasSwitch('verbose');
+  }
+  
+  // CLI fallback: check process.argv or env
+  return process.argv.includes('--verbose') || !!process.env.VERBOSE;
 }
 
 export function log(message: string, ...args: any[]) {
