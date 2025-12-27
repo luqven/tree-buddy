@@ -1,10 +1,8 @@
 import { useState, useMemo } from 'react';
-import { CaretRight, Broom, Lock, Pencil } from '@phosphor-icons/react';
-import { StatusDot } from './StatusDot';
+import { CaretRight, Broom, Lock, Pencil, CloudArrowDown } from '@phosphor-icons/react';
 import { useAppState } from '../hooks/useAppState';
 import { buildTree } from '@services/scope';
 import type { Project, Branch, ScopeNode } from '@core/types';
-import { toSyncStatus } from '@core/types';
 import { fmtAgo, cn } from '@/lib/utils';
 
 interface BranchTreeProps {
@@ -12,7 +10,7 @@ interface BranchTreeProps {
 }
 
 export function BranchTree({ project }: BranchTreeProps) {
-  const { cfg, openPath } = useAppState();
+  const { cfg, openInTerminal } = useAppState();
 
   const tree = useMemo(() => {
     return buildTree(project.branches, {
@@ -28,7 +26,7 @@ export function BranchTree({ project }: BranchTreeProps) {
           key={node.name + i}
           node={node}
           projectRoot={project.root}
-          onOpen={openPath}
+          onOpen={openInTerminal}
         />
       ))}
     </div>
@@ -109,7 +107,6 @@ interface BranchItemProps {
 function BranchItem({ branch, projectRoot, onOpen }: BranchItemProps) {
   const { lockWorktree, unlockWorktree, deletingPaths } = useAppState();
   const [isPending, setIsPending] = useState(false);
-  const status = toSyncStatus(branch.status);
   const ago = branch.status.ts ? fmtAgo(branch.status.ts) : 'never';
 
   const isDeleting = deletingPaths.has(branch.path);
@@ -141,12 +138,72 @@ function BranchItem({ branch, projectRoot, onOpen }: BranchItemProps) {
       onClick={() => !isBusy && onOpen(branch.path)}
       title={isBusy ? 'Processing...' : `Open ${branch.name} (${branch.locked ? 'locked' : 'unlocked'})`}
     >
-      <StatusDot status={status} />
       <span className="flex-1 text-sm truncate">{branch.name}</span>
 
       <div className="flex items-center gap-1 ml-2 mr-2">
+        {/* Behind origin indicator */}
+        {branch.status.behind > 0 && (
+          <div
+            className="inline-flex items-center justify-center w-5 h-5 text-status-red"
+            title={`${branch.status.behind} commit${branch.status.behind > 1 ? 's' : ''} behind origin`}
+          >
+            <CloudArrowDown size={14} />
+          </div>
+        )}
+
+        {/* Cleanup/Status icons */}
+        {branch.showCleanupIcon && (
+          branch.isMain || branch.isCurrent || branch.locked ? (
+            <div 
+              className="inline-flex items-center justify-center w-5 h-5 text-muted-foreground/50"
+              title={branch.cleanupIconType === 'pencil' ? "Uncommitted changes" : "Merged"}
+            >
+              {branch.cleanupIconType === 'pencil' ? <Pencil size={14} /> : <Broom size={14} />}
+            </div>
+          ) : (
+            <button
+              className={cn(
+                "inline-flex items-center justify-center w-5 h-5 text-muted-foreground hover:text-primary",
+                isBusy && "cursor-not-allowed"
+              )}
+              disabled={isBusy}
+              onClick={async (e) => {
+                e.stopPropagation();
+
+                const isPencil = branch.cleanupIconType === 'pencil';
+                if (isPencil) {
+                  // Show confirmation for pencil (uncommitted changes)
+                  const confirmed = window.confirm(
+                    `This worktree has uncommitted changes. Are you sure you want to delete "${branch.name}"?`
+                  );
+                  if (!confirmed) return;
+                }
+
+                setIsPending(true);
+                try {
+                  // Use fast "bumblebee" trash approach for individual cleanups too
+                  const ok = await window.treeBuddy.deleteWorktree(projectRoot, branch.path, isPencil, true);
+                  if (!ok) setIsPending(false);
+                } catch {
+                  setIsPending(false);
+                }
+              }}
+              title={branch.cleanupIconType === 'pencil'
+                ? "Delete merged worktree (has uncommitted changes)"
+                : "Delete merged worktree"
+              }
+            >
+              {branch.cleanupIconType === 'pencil' ? (
+                <Pencil size={14} />
+              ) : (
+                <Broom size={14} />
+              )}
+            </button>
+          )
+        )}
+
         {/* Lock icon - clickable for all non-main branches */}
-        {!branch.isMain ? (
+        {!branch.isMain && (
           <button
             className={cn(
               "inline-flex items-center justify-center w-5 h-5 transition-colors",
@@ -159,52 +216,6 @@ function BranchItem({ branch, projectRoot, onOpen }: BranchItemProps) {
           >
             <Lock size={14} weight={branch.locked ? "fill" : "regular"} />
           </button>
-        ) : (
-          <div className="w-5" />
-        )}
-
-        {/* Cleanup icons - only for merged + unlocked + not current */}
-        {branch.showCleanupIcon ? (
-          <button
-            className={cn(
-              "inline-flex items-center justify-center w-5 h-5 text-muted-foreground hover:text-primary",
-              isBusy && "cursor-not-allowed"
-            )}
-            disabled={isBusy}
-            onClick={async (e) => {
-              e.stopPropagation();
-
-              const isPencil = branch.cleanupIconType === 'pencil';
-              if (isPencil) {
-                // Show confirmation for pencil (uncommitted changes)
-                const confirmed = window.confirm(
-                  `This worktree has uncommitted changes. Are you sure you want to delete "${branch.name}"?`
-                );
-                if (!confirmed) return;
-              }
-
-              setIsPending(true);
-              try {
-                // Use fast "bumblebee" trash approach for individual cleanups too
-                const ok = await window.treeBuddy.deleteWorktree(projectRoot, branch.path, isPencil, true);
-                if (!ok) setIsPending(false);
-              } catch {
-                setIsPending(false);
-              }
-            }}
-            title={branch.cleanupIconType === 'pencil'
-              ? "Delete merged worktree (has uncommitted changes)"
-              : "Delete merged worktree"
-            }
-          >
-            {branch.cleanupIconType === 'pencil' ? (
-              <Pencil size={14} />
-            ) : (
-              <Broom size={14} />
-            )}
-          </button>
-        ) : (
-          <div className="w-5" />
         )}
       </div>
 

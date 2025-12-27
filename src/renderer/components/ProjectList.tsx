@@ -111,7 +111,7 @@ function ProjectItem({
           )}
           {isLoading && <span className="ml-1 text-muted-foreground">...</span>}
         </span>
-        <div className="flex items-center gap-1 w-8 opacity-0 group-hover:opacity-100 transition-opacity" aria-label="project-actions">
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity" aria-label="project-actions">
           <Button
             variant="ghost"
             size="icon"
