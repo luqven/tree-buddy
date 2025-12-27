@@ -6,48 +6,49 @@
 
 @layer base {
   :root {
-    /* Mira style + Amber theme + Neutral base */
-    --background: 0 0% 100%;
-    --foreground: 0 0% 9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 9%;
-    --primary: 38 92% 50%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 38 92% 50%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 38 92% 50%;
+    /* Solarized Light */
+    --background: 44 87% 94%;        /* base3 #fdf6e3 */
+    --foreground: 194 14% 40%;       /* base00 #657b83 */
+    --card: 44 87% 94%;              /* base3 */
+    --card-foreground: 194 14% 40%;  /* base00 */
+    --popover: 44 87% 94%;           /* base3 */
+    --popover-foreground: 194 14% 40%; /* base00 */
+    --primary: 205 69% 49%;          /* blue #268bd2 */
+    --primary-foreground: 44 87% 94%; /* base3 */
+    --secondary: 44 25% 88%;         /* base2 #eee8d5 */
+    --secondary-foreground: 194 14% 40%; /* base00 */
+    --muted: 44 25% 88%;             /* base2 */
+    --muted-foreground: 194 14% 40%; /* base00 */
+    --accent: 205 69% 49%;           /* blue */
+    --accent-foreground: 44 87% 94%; /* base3 */
+    --destructive: 1 71% 52%;        /* red #dc322f */
+    --destructive-foreground: 44 87% 94%; /* base3 */
+    --border: 44 25% 88%;            /* base2 */
+    --input: 44 25% 88%;             /* base2 */
+    --ring: 205 69% 49%;             /* blue */
   }
 
   .dark {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 4%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 4%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 38 92% 50%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 64%;
-    --accent: 38 92% 50%;
-    --accent-foreground: 0 0% 9%;
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 15%;
-    --input: 0 0% 15%;
-    --ring: 38 92% 50%;
+    /* Solarized Dark */
+    --background: 192 100% 11%;      /* base03 #002b36 */
+    --foreground: 186 8% 55%;        /* base0 #839496 */
+    --card: 192 100% 11%;            /* base03 */
+    --card-foreground: 186 8% 55%;   /* base0 */
+    --popover: 192 100% 11%;         /* base03 */
+    --popover-foreground: 186 8% 55%; /* base0 */
+    --primary: 205 69% 49%;          /* blue #268bd2 */
+    --primary-foreground: 192 100% 11%; /* base03 */
+    --secondary: 192 81% 14%;        /* base02 #073642 */
+    --secondary-foreground: 186 8% 55%; /* base0 */
+    --muted: 192 81% 14%;            /* base02 */
+    --muted-foreground: 194 14% 40%; /* base01 #586e75 */
+    --accent: 205 69% 49%;           /* blue */
+    --accent-foreground: 192 100% 11%; /* base03 */
+    --destructive: 1 71% 52%;        /* red #dc322f */
+    --destructive-foreground: 186 8% 55%; /* base0 */
+    --border: 192 81% 14%;           /* base02 */
+    --input: 192 81% 14%;            /* base02 */
+    --ring: 205 69% 49%;             /* blue */
   }
 }
 

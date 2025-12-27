@@ -46,11 +46,21 @@ module.exports = {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
-        // Stoplight status colors
+        // Solarized accent colors
         status: {
-          green: '#34c759',
-          yellow: '#ffcc00',
-          red: '#ff3b30',
+          green: '#859900',   /* solarized green */
+          yellow: '#b58900',  /* solarized yellow */
+          red: '#dc322f',     /* solarized red */
+        },
+        solarized: {
+          yellow: '#b58900',
+          orange: '#cb4b16',
+          red: '#dc322f',
+          magenta: '#d33682',
+          violet: '#6c71c4',
+          blue: '#268bd2',
+          cyan: '#2aa198',
+          green: '#859900',
         },
       },
     },
