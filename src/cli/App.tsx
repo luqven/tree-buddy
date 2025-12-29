@@ -482,13 +482,13 @@ export function App({ service }: { service: AppService }) {
         <box border title="Add Project - ↑/↓ select, Enter add, Esc cancel" flexGrow={1}>
           <scrollbox flexGrow={1} focused>
             {candidates.length === 0 ? (
-              <text fg="gray">No new projects found</text>
+              <text dim>No new projects found</text>
             ) : (
               candidates.map((c, i) => (
-                <box key={c.path} style={{ paddingLeft: 1, backgroundColor: i === candidateIdx ? '#333' : undefined }}>
+                <box key={c.path} style={{ paddingLeft: 1 }}>
                   <text>
-                    <span fg={i === candidateIdx ? 'cyan' : 'white'}>{c.name}</span>
-                    <span fg="gray"> ({c.branchCount} branches)</span>
+                    <span fg={i === candidateIdx ? 'cyan' : undefined}>{i === candidateIdx ? '> ' : '  '}{c.name}</span>
+                    <span dim> ({c.branchCount} branches)</span>
                   </text>
                 </box>
               ))
@@ -510,23 +510,23 @@ export function App({ service }: { service: AppService }) {
                 <text fg="cyan">Enter new branch name:</text>
                 <text> </text>
                 <text>
-                  <span fg="white">&gt; </span>
+                  <span>&gt; </span>
                   <span fg="yellow">{inputValue}</span>
-                  <span fg="white">_</span>
+                  <span>_</span>
                 </text>
               </>
             ) : (
               <>
                 <text fg="cyan">Select base branch for: <span fg="yellow">{createState.branchName}</span></text>
-                <text fg="gray">(Press Enter on HEAD to create from current)</text>
+                <text dim>(Press Enter on HEAD to create from current)</text>
                 <text> </text>
                 <scrollbox flexGrow={1} focused>
-                  <box style={{ backgroundColor: createState.selectedIdx === 0 ? '#333' : undefined, paddingLeft: 1 }}>
-                    <text fg={createState.selectedIdx === 0 ? 'cyan' : 'white'}>[HEAD - current]</text>
+                  <box style={{ paddingLeft: 1 }}>
+                    <text fg={createState.selectedIdx === 0 ? 'cyan' : undefined}>{createState.selectedIdx === 0 ? '> ' : '  '}[HEAD - current]</text>
                   </box>
                   {createState.branches.map((br, i) => (
-                    <box key={br} style={{ backgroundColor: i + 1 === createState.selectedIdx ? '#333' : undefined, paddingLeft: 1 }}>
-                      <text fg={i + 1 === createState.selectedIdx ? 'cyan' : 'gray'}>{br}</text>
+                    <box key={br} style={{ paddingLeft: 1 }}>
+                      <text fg={i + 1 === createState.selectedIdx ? 'cyan' : undefined}>{i + 1 === createState.selectedIdx ? '> ' : '  '}{br}</text>
                     </box>
                   ))}
                 </scrollbox>
@@ -557,33 +557,35 @@ export function App({ service }: { service: AppService }) {
       <box style={{ marginBottom: 1 }}>
         <text>
           <span fg="cyan" bold>Tree Buddy</span>
-          <span fg="gray"> | ? help | q quit</span>
+          <span dim> | ? help | q quit</span>
         </text>
       </box>
 
       <scrollbox flexGrow={1} border title="Projects" focused>
         {allItems.length === 0 ? (
           <box style={{ padding: 1 }}>
-            <text fg="gray">No projects. Press 'a' to add one.</text>
+            <text dim>No projects. Press 'a' to add one.</text>
           </box>
         ) : (
           allItems.map((item, i) => {
             const isSelected = i === selectedIndex;
+            const marker = isSelected ? '>' : ' ';
             if (item.type === 'project') {
               const p = item.data as Project;
               return (
-                <box key={p.id} style={{ paddingLeft: 1, backgroundColor: isSelected ? '#333' : undefined }}>
-                  <text bold fg="yellow">{p.name}</text>
-                  <text fg="gray"> ({p.branches.length})</text>
+                <box key={p.id} style={{ paddingLeft: 1 }}>
+                  <text bold fg={isSelected ? 'cyan' : 'yellow'}>{marker} {p.name}</text>
+                  <text dim> ({p.branches.length})</text>
                 </box>
               );
             } else {
               const br = item.data as Branch;
               return (
-                <box key={`${item.project.id}-${br.name}`} style={{ paddingLeft: 3, backgroundColor: isSelected ? '#333' : undefined }}>
+                <box key={`${item.project.id}-${br.name}`} style={{ paddingLeft: 3 }}>
                   <text>
+                    <span fg={isSelected ? 'cyan' : undefined}>{marker} </span>
                     <BranchStatusIndicator branch={br} />
-                    <span fg={isSelected ? 'white' : 'gray'}>{br.name}</span>
+                    <span fg={isSelected ? 'cyan' : undefined} bold={isSelected}>{br.name}</span>
                     <BranchBadges branch={br} />
                   </text>
                 </box>
@@ -657,7 +659,7 @@ function BranchDetails({ branch }: { branch: Branch }) {
   const status = parts.length > 0 ? parts.join(' | ') : 'clean';
   
   return (
-    <text fg="gray">
+    <text dim>
       {branch.name}: {status}
     </text>
   );
@@ -667,13 +669,13 @@ function ActionBar({ actions }: { actions: ActionHint[] }) {
   return (
     <text>
       {actions.map((action, i) => {
-        const color = !action.enabled ? 'gray' : action.highlight ? 'yellow' : 'white';
-        const keyColor = !action.enabled ? 'gray' : action.highlight ? 'yellow' : 'cyan';
+        const isDim = !action.enabled;
+        const isHighlight = action.enabled && action.highlight;
         return (
           <span key={action.key}>
-            {i > 0 && <span fg="gray">  </span>}
-            <span fg={keyColor}>[{action.key}]</span>
-            <span fg={color}> {action.label}</span>
+            {i > 0 && <span>  </span>}
+            <span dim={isDim} fg={isHighlight ? 'yellow' : (action.enabled ? 'cyan' : undefined)}>[{action.key}]</span>
+            <span dim={isDim} fg={isHighlight ? 'yellow' : undefined}> {action.label}</span>
           </span>
         );
       })}
@@ -704,8 +706,8 @@ function StatusLine({
   
   if (selectedItem?.type === 'project') {
     const proj = selectedItem.data as Project;
-    return <text fg="gray">{proj.root}</text>;
+    return <text dim>{proj.root}</text>;
   }
   
-  return <text fg="gray">No selection</text>;
+  return <text dim>No selection</text>;
 }
