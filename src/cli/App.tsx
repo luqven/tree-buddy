@@ -6,6 +6,66 @@ import { join, dirname, basename } from 'path';
 
 type Mode = 'normal' | 'help' | 'confirm-delete' | 'add-project' | 'create-worktree' | 'select-branch';
 
+interface ActionHint {
+  key: string;
+  label: string;
+  enabled: boolean;
+  highlight?: boolean;
+}
+
+type SelectedItem = { type: 'project' | 'branch'; data: Project | Branch; project: Project } | undefined;
+
+function getContextualActions(item: SelectedItem, totalItems: number): ActionHint[] {
+  // Empty state
+  if (totalItems === 0) {
+    return [
+      { key: 'a', label: 'add project', enabled: true },
+      { key: '?', label: 'help', enabled: true },
+    ];
+  }
+
+  // Project selected
+  if (item?.type === 'project') {
+    return [
+      { key: 'o', label: 'open', enabled: true },
+      { key: 't', label: 'terminal', enabled: true },
+      { key: 'n', label: 'new worktree', enabled: true },
+      { key: 'x', label: 'remove', enabled: true },
+      { key: 'a', label: 'add project', enabled: true },
+      { key: 'r', label: 'refresh', enabled: true },
+      { key: '?', label: 'help', enabled: true },
+    ];
+  }
+
+  // Branch selected
+  if (item?.type === 'branch') {
+    const br = item.data as Branch;
+    const canDelete = !br.isMain && !br.isCurrent && !br.locked;
+    const canLock = !br.isMain;
+    const canPull = !br.status.dirty;
+    const isBehind = br.status.behind > 0;
+    const isMerged = br.merged && canDelete;
+
+    return [
+      { key: 'o', label: 'open', enabled: true },
+      { key: 't', label: 'terminal', enabled: true },
+      { key: 'n', label: 'new', enabled: true },
+      { key: 'd', label: 'delete', enabled: canDelete, highlight: isMerged },
+      { key: 'l', label: br.locked ? 'unlock' : 'lock', enabled: canLock },
+      { key: 'f', label: 'fetch', enabled: true },
+      { key: 'p', label: 'pull', enabled: canPull, highlight: isBehind && canPull },
+      { key: '?', label: 'help', enabled: true },
+    ];
+  }
+
+  // Fallback
+  return [
+    { key: 'o', label: 'open', enabled: true },
+    { key: 't', label: 'terminal', enabled: true },
+    { key: '?', label: 'help', enabled: true },
+  ];
+}
+
 interface ConfirmState {
   msg: string;
   onConfirm: () => void;
@@ -533,17 +593,21 @@ export function App({ service }: { service: AppService }) {
         )}
       </scrollbox>
 
-      {/* Status bar */}
-      <box style={{ marginTop: 1, height: 1 }}>
-        {state.isRefreshing ? (
-          <text fg="cyan">Refreshing...</text>
-        ) : status ? (
-          <text fg="green">{status}</text>
-        ) : selectedItem?.type === 'branch' ? (
-          <BranchDetails branch={selectedItem.data as Branch} />
-        ) : (
-          <text fg="gray">↑/↓ navigate | o open | t terminal | n new | d delete | ? help</text>
-        )}
+      {/* Footer: Status line + Action bar */}
+      <box flexDirection="column" style={{ marginTop: 1 }}>
+        {/* Line 1: Status */}
+        <box style={{ height: 1 }}>
+          <StatusLine 
+            isRefreshing={state.isRefreshing} 
+            status={status} 
+            selectedItem={selectedItem} 
+          />
+        </box>
+        
+        {/* Line 2: Contextual action hints */}
+        <box style={{ height: 1 }}>
+          <ActionBar actions={getContextualActions(selectedItem, allItems.length)} />
+        </box>
       </box>
     </box>
   );
@@ -597,4 +661,51 @@ function BranchDetails({ branch }: { branch: Branch }) {
       {branch.name}: {status}
     </text>
   );
+}
+
+function ActionBar({ actions }: { actions: ActionHint[] }) {
+  return (
+    <text>
+      {actions.map((action, i) => {
+        const color = !action.enabled ? 'gray' : action.highlight ? 'yellow' : 'white';
+        const keyColor = !action.enabled ? 'gray' : action.highlight ? 'yellow' : 'cyan';
+        return (
+          <span key={action.key}>
+            {i > 0 && <span fg="gray">  </span>}
+            <span fg={keyColor}>[{action.key}]</span>
+            <span fg={color}> {action.label}</span>
+          </span>
+        );
+      })}
+    </text>
+  );
+}
+
+function StatusLine({ 
+  isRefreshing, 
+  status, 
+  selectedItem 
+}: { 
+  isRefreshing: boolean; 
+  status: string; 
+  selectedItem: SelectedItem;
+}) {
+  if (isRefreshing) {
+    return <text fg="cyan">Refreshing...</text>;
+  }
+  
+  if (status) {
+    return <text fg="green">{status}</text>;
+  }
+  
+  if (selectedItem?.type === 'branch') {
+    return <BranchDetails branch={selectedItem.data as Branch} />;
+  }
+  
+  if (selectedItem?.type === 'project') {
+    const proj = selectedItem.data as Project;
+    return <text fg="gray">{proj.root}</text>;
+  }
+  
+  return <text fg="gray">No selection</text>;
 }
