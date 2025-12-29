@@ -9,6 +9,12 @@ import {
   unlockWorktreeAsync,
   removeWorktreeAsync,
   pruneWorktreesAsync,
+  createWorktreeAsync,
+  fetchRemoteBranchesAsync,
+  fetchLocalBranchesAsync,
+  fetchAsync,
+  pullAsync,
+  CreateWorktreeOpts,
 } from './git.js';
 import { load, save, addProject, rmProject, updateProject } from './store.js';
 import { loadScanCache, saveScanCache, isCacheStale } from './cache.js';
@@ -244,4 +250,45 @@ export class AppService {
   showInFolder(path: string) { return this.adapter.showItemInFolder(path); }
   openInTerminal(path: string) { return this.adapter.openTerminal(path); }
   quit() { this.adapter.quit(); }
+
+  async createWorktree(opts: Omit<CreateWorktreeOpts, 'repoRoot'> & { projectId: string }): Promise<void> {
+    const proj = this.cfg.projects.find((p) => p.id === opts.projectId);
+    if (!proj) throw new Error('Project not found');
+
+    await createWorktreeAsync({
+      repoRoot: proj.root,
+      path: opts.path,
+      branch: opts.branch,
+      createBranch: opts.createBranch,
+      baseBranch: opts.baseBranch,
+    });
+    await this.refreshProject(proj.id);
+  }
+
+  async getRemoteBranches(projectId: string): Promise<string[]> {
+    const proj = this.cfg.projects.find((p) => p.id === projectId);
+    if (!proj) return [];
+    return await fetchRemoteBranchesAsync(proj.root);
+  }
+
+  async getLocalBranches(projectId: string): Promise<string[]> {
+    const proj = this.cfg.projects.find((p) => p.id === projectId);
+    if (!proj) return [];
+    return await fetchLocalBranchesAsync(proj.root);
+  }
+
+  async fetchWorktree(worktreePath: string): Promise<void> {
+    await fetchAsync(worktreePath);
+    await this.refreshAll(true);
+  }
+
+  async pullWorktree(worktreePath: string): Promise<string> {
+    const result = await pullAsync(worktreePath);
+    await this.refreshAll(true);
+    return result;
+  }
+
+  async deleteWorktree(root: string, path: string, force = false, useTrash = false): Promise<boolean> {
+    return this.deleteWorktrees([{ root, path, force, useTrash }]);
+  }
 }

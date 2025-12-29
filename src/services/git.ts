@@ -451,6 +451,74 @@ export async function pruneWorktreesAsync(repoRoot: string): Promise<void> {
 }
 
 /**
+ * Create a new worktree
+ */
+export interface CreateWorktreeOpts {
+  repoRoot: string;
+  path: string;
+  branch: string;
+  createBranch?: boolean;
+  baseBranch?: string;
+}
+
+export async function createWorktreeAsync(opts: CreateWorktreeOpts): Promise<void> {
+  const { repoRoot, path, branch, createBranch, baseBranch } = opts;
+  let args = `worktree add "${path}"`;
+  
+  if (createBranch) {
+    args += ` -b ${branch}`;
+    if (baseBranch) {
+      args += ` ${baseBranch}`;
+    }
+  } else {
+    args += ` ${branch}`;
+  }
+  
+  await gitAsync(args, { cwd: repoRoot, timeout: 60000 });
+}
+
+/**
+ * Fetch remote branches list
+ */
+export async function fetchRemoteBranchesAsync(repoRoot: string): Promise<string[]> {
+  const output = await gitSafeAsync('branch -r', { cwd: repoRoot });
+  if (!output) return [];
+  
+  return output
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line && !line.includes('->'))
+    .map(line => line.replace(/^origin\//, ''));
+}
+
+/**
+ * Fetch local branches list
+ */
+export async function fetchLocalBranchesAsync(repoRoot: string): Promise<string[]> {
+  const output = await gitSafeAsync('branch', { cwd: repoRoot });
+  if (!output) return [];
+  
+  return output
+    .split('\n')
+    .map(line => line.replace(/^[*+ ]+/, '').trim())
+    .filter(line => line.length > 0);
+}
+
+/**
+ * Fetch from remote
+ */
+export async function fetchAsync(worktreePath: string): Promise<void> {
+  await gitAsync('fetch --prune', { cwd: worktreePath, timeout: 60000 });
+}
+
+/**
+ * Pull from remote
+ */
+export async function pullAsync(worktreePath: string): Promise<string> {
+  return await gitAsync('pull', { cwd: worktreePath, timeout: 60000 });
+}
+
+/**
  * Get the toplevel path of a repository
  */
 export async function getRepoRootAsync(path: string): Promise<string> {

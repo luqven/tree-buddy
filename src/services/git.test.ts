@@ -17,6 +17,11 @@ import {
   getMergedBranchesAsync,
   removeWorktreeAsync,
   pruneWorktreesAsync,
+  createWorktreeAsync,
+  fetchRemoteBranchesAsync,
+  fetchLocalBranchesAsync,
+  fetchAsync,
+  pullAsync,
 } from './git';
 
 describe('git service', () => {
@@ -289,6 +294,102 @@ describe('git service', () => {
       // Cleanup
       execSync(`git worktree remove "${wtMerged}"`, { cwd: wt1 });
       execSync('git branch -d merged-branch', { cwd: wt1 });
+    });
+  });
+
+  describe('createWorktreeAsync', () => {
+    it('creates a new worktree with a new branch', async () => {
+      const wtNew = join(tmp, 'wt-new-branch');
+      await createWorktreeAsync({
+        repoRoot: wt1,
+        path: wtNew,
+        branch: 'new-branch',
+        createBranch: true,
+      });
+
+      const wts = await listWorktreesAsync(wt1);
+      expect(wts.some(w => w.name === 'new-branch')).toBe(true);
+
+      // Cleanup
+      await removeWorktreeAsync(wt1, wtNew);
+      execSync('git branch -d new-branch', { cwd: wt1 });
+    });
+
+    it('creates worktree from existing branch', async () => {
+      // Create a branch first
+      execSync('git branch existing-branch', { cwd: wt1 });
+      
+      const wtExisting = join(tmp, 'wt-existing');
+      await createWorktreeAsync({
+        repoRoot: wt1,
+        path: wtExisting,
+        branch: 'existing-branch',
+        createBranch: false,
+      });
+
+      const wts = await listWorktreesAsync(wt1);
+      expect(wts.some(w => w.name === 'existing-branch')).toBe(true);
+
+      // Cleanup
+      await removeWorktreeAsync(wt1, wtExisting);
+      execSync('git branch -d existing-branch', { cwd: wt1 });
+    });
+
+    it('creates new branch from specified base branch', async () => {
+      const wtBased = join(tmp, 'wt-based');
+      await createWorktreeAsync({
+        repoRoot: wt1,
+        path: wtBased,
+        branch: 'based-branch',
+        createBranch: true,
+        baseBranch: 'main',
+      });
+
+      const wts = await listWorktreesAsync(wt1);
+      expect(wts.some(w => w.name === 'based-branch')).toBe(true);
+
+      // Cleanup
+      await removeWorktreeAsync(wt1, wtBased);
+      execSync('git branch -d based-branch', { cwd: wt1 });
+    });
+  });
+
+  describe('fetchRemoteBranchesAsync', () => {
+    it('lists remote branches', async () => {
+      const branches = await fetchRemoteBranchesAsync(wt1);
+      expect(branches).toContain('main');
+    });
+
+    it('returns empty array for invalid repo', async () => {
+      const branches = await fetchRemoteBranchesAsync('/invalid/path');
+      expect(branches).toEqual([]);
+    });
+  });
+
+  describe('fetchLocalBranchesAsync', () => {
+    it('lists local branches', async () => {
+      const branches = await fetchLocalBranchesAsync(wt1);
+      expect(branches).toContain('main');
+      expect(branches).toContain('feature');
+    });
+
+    it('returns empty array for invalid repo', async () => {
+      const branches = await fetchLocalBranchesAsync('/invalid/path');
+      expect(branches).toEqual([]);
+    });
+  });
+
+  describe('fetchAsync', () => {
+    it('fetches without error on valid repo', async () => {
+      await expect(fetchAsync(wt1)).resolves.not.toThrow();
+    });
+  });
+
+  describe('pullAsync', () => {
+    it('pulls without error on valid repo', async () => {
+      // Should succeed since wt1 is tracking origin/main
+      const result = await pullAsync(wt1);
+      expect(typeof result).toBe('string');
     });
   });
 
