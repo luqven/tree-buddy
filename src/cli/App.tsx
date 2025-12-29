@@ -3,6 +3,10 @@ import { useKeyboard, useTerminalDimensions } from '@opentui/react';
 import { AppService, AppState } from '../services/AppService';
 import { Project, Branch, WorktreeCandidate } from '../core/types';
 import { join, dirname, basename } from 'path';
+import { getTheme, toFg } from './theme';
+
+// Get theme colors helper
+const t = () => getTheme().colors;
 
 type Mode = 'normal' | 'help' | 'confirm-delete' | 'add-project' | 'create-worktree' | 'select-branch';
 
@@ -442,33 +446,36 @@ export function App({ service }: { service: AppService }) {
 
   // Render help overlay
   if (mode === 'help') {
+    const theme = t();
+    const primary = toFg(theme.primary);
+    const highlight = toFg(theme.actionHighlight);
     return (
       <box flexDirection="column" style={{ width, height, padding: 1 }}>
         <box border title="Help - Press ? or q to close" flexGrow={1}>
           <box flexDirection="column" style={{ padding: 1 }}>
-            <text bold fg="cyan">Navigation</text>
-            <text>  <span fg="yellow">↑/k</span>  Move up</text>
-            <text>  <span fg="yellow">↓/j</span>  Move down</text>
-            <text>  <span fg="yellow">q</span>    Quit</text>
+            <text bold fg={primary}>Navigation</text>
+            <text>  <span fg={highlight}>↑/k</span>  Move up</text>
+            <text>  <span fg={highlight}>↓/j</span>  Move down</text>
+            <text>  <span fg={highlight}>q</span>    Quit</text>
             <text> </text>
-            <text bold fg="cyan">Actions</text>
-            <text>  <span fg="yellow">o</span>    Open in Finder</text>
-            <text>  <span fg="yellow">t</span>    Open in Terminal</text>
-            <text>  <span fg="yellow">r</span>    Refresh all</text>
+            <text bold fg={primary}>Actions</text>
+            <text>  <span fg={highlight}>o</span>    Open in Finder</text>
+            <text>  <span fg={highlight}>t</span>    Open in Terminal</text>
+            <text>  <span fg={highlight}>r</span>    Refresh all</text>
             <text> </text>
-            <text bold fg="cyan">Worktree Management</text>
-            <text>  <span fg="yellow">n</span>    Create new worktree</text>
-            <text>  <span fg="yellow">d</span>    Delete worktree</text>
-            <text>  <span fg="yellow">D</span>    Delete all merged worktrees</text>
-            <text>  <span fg="yellow">l</span>    Toggle lock</text>
+            <text bold fg={primary}>Worktree Management</text>
+            <text>  <span fg={highlight}>n</span>    Create new worktree</text>
+            <text>  <span fg={highlight}>d</span>    Delete worktree</text>
+            <text>  <span fg={highlight}>D</span>    Delete all merged worktrees</text>
+            <text>  <span fg={highlight}>l</span>    Toggle lock</text>
             <text> </text>
-            <text bold fg="cyan">Git Operations</text>
-            <text>  <span fg="yellow">f</span>    Fetch</text>
-            <text>  <span fg="yellow">p</span>    Pull</text>
+            <text bold fg={primary}>Git Operations</text>
+            <text>  <span fg={highlight}>f</span>    Fetch</text>
+            <text>  <span fg={highlight}>p</span>    Pull</text>
             <text> </text>
-            <text bold fg="cyan">Projects</text>
-            <text>  <span fg="yellow">a</span>    Add project</text>
-            <text>  <span fg="yellow">x</span>    Remove project</text>
+            <text bold fg={primary}>Projects</text>
+            <text>  <span fg={highlight}>a</span>    Add project</text>
+            <text>  <span fg={highlight}>x</span>    Remove project</text>
           </box>
         </box>
       </box>
@@ -477,6 +484,8 @@ export function App({ service }: { service: AppService }) {
 
   // Render add-project overlay
   if (mode === 'add-project') {
+    const theme = t();
+    const selection = toFg(theme.selection);
     return (
       <box flexDirection="column" style={{ width, height, padding: 1 }}>
         <box border title="Add Project - ↑/↓ select, Enter add, Esc cancel" flexGrow={1}>
@@ -487,7 +496,7 @@ export function App({ service }: { service: AppService }) {
               candidates.map((c, i) => (
                 <box key={c.path} style={{ paddingLeft: 1 }}>
                   <text>
-                    <span fg={i === candidateIdx ? 'cyan' : undefined}>{i === candidateIdx ? '> ' : '  '}{c.name}</span>
+                    <span fg={i === candidateIdx ? selection : undefined}>{i === candidateIdx ? '> ' : '  '}{c.name}</span>
                     <span dim> ({c.branchCount} branches)</span>
                   </text>
                 </box>
@@ -501,32 +510,36 @@ export function App({ service }: { service: AppService }) {
 
   // Render create-worktree overlay
   if (mode === 'create-worktree' && createState) {
+    const theme = t();
+    const primary = toFg(theme.primary);
+    const highlight = toFg(theme.actionHighlight);
+    const selection = toFg(theme.selection);
     return (
       <box flexDirection="column" style={{ width, height, padding: 1 }}>
         <box border title="Create Worktree - Esc cancel" flexGrow={1}>
           <box flexDirection="column" style={{ padding: 1 }}>
             {createState.step === 'name' ? (
               <>
-                <text fg="cyan">Enter new branch name:</text>
+                <text fg={primary}>Enter new branch name:</text>
                 <text> </text>
                 <text>
                   <span>&gt; </span>
-                  <span fg="yellow">{inputValue}</span>
+                  <span fg={highlight}>{inputValue}</span>
                   <span>_</span>
                 </text>
               </>
             ) : (
               <>
-                <text fg="cyan">Select base branch for: <span fg="yellow">{createState.branchName}</span></text>
+                <text fg={primary}>Select base branch for: <span fg={highlight}>{createState.branchName}</span></text>
                 <text dim>(Press Enter on HEAD to create from current)</text>
                 <text> </text>
                 <scrollbox flexGrow={1} focused>
                   <box style={{ paddingLeft: 1 }}>
-                    <text fg={createState.selectedIdx === 0 ? 'cyan' : undefined}>{createState.selectedIdx === 0 ? '> ' : '  '}[HEAD - current]</text>
+                    <text fg={createState.selectedIdx === 0 ? selection : undefined}>{createState.selectedIdx === 0 ? '> ' : '  '}[HEAD - current]</text>
                   </box>
                   {createState.branches.map((br, i) => (
                     <box key={br} style={{ paddingLeft: 1 }}>
-                      <text fg={i + 1 === createState.selectedIdx ? 'cyan' : undefined}>{i + 1 === createState.selectedIdx ? '> ' : '  '}{br}</text>
+                      <text fg={i + 1 === createState.selectedIdx ? selection : undefined}>{i + 1 === createState.selectedIdx ? '> ' : '  '}{br}</text>
                     </box>
                   ))}
                 </scrollbox>
@@ -544,7 +557,7 @@ export function App({ service }: { service: AppService }) {
       <box flexDirection="column" style={{ width, height, padding: 1 }}>
         <box flexGrow={1} />
         <box border style={{ padding: 1 }}>
-          <text fg="yellow">{confirm.msg}</text>
+          <text fg={toFg(t().warning)}>{confirm.msg}</text>
         </box>
         <box flexGrow={1} />
       </box>
@@ -556,7 +569,7 @@ export function App({ service }: { service: AppService }) {
     <box flexDirection="column" style={{ width, height, padding: 1 }}>
       <box style={{ marginBottom: 1 }}>
         <text>
-          <span fg="cyan" bold>Tree Buddy</span>
+          <span fg={toFg(t().primary)} bold>Tree Buddy</span>
           <span dim> | ? help | q quit</span>
         </text>
       </box>
@@ -570,11 +583,12 @@ export function App({ service }: { service: AppService }) {
           allItems.map((item, i) => {
             const isSelected = i === selectedIndex;
             const marker = isSelected ? '>' : ' ';
+            const theme = t();
             if (item.type === 'project') {
               const p = item.data as Project;
               return (
                 <box key={p.id} style={{ paddingLeft: 1 }}>
-                  <text bold fg={isSelected ? 'cyan' : 'yellow'}>{marker} {p.name}</text>
+                  <text bold fg={toFg(isSelected ? theme.selection : theme.warning)}>{marker} {p.name}</text>
                   <text dim> ({p.branches.length})</text>
                 </box>
               );
@@ -583,9 +597,9 @@ export function App({ service }: { service: AppService }) {
               return (
                 <box key={`${item.project.id}-${br.name}`} style={{ paddingLeft: 3 }}>
                   <text>
-                    <span fg={isSelected ? 'cyan' : undefined}>{marker} </span>
+                    <span fg={toFg(isSelected ? theme.selection : undefined)}>{marker} </span>
                     <BranchStatusIndicator branch={br} />
-                    <span fg={isSelected ? 'cyan' : undefined} bold={isSelected}>{br.name}</span>
+                    <span fg={toFg(isSelected ? theme.selection : undefined)} bold={isSelected}>{br.name}</span>
                     <BranchBadges branch={br} />
                   </text>
                 </box>
@@ -616,32 +630,34 @@ export function App({ service }: { service: AppService }) {
 }
 
 function BranchStatusIndicator({ branch }: { branch: Branch }) {
+  const theme = t();
   if (branch.status.behind > 0) {
-    return <span fg="red">● </span>;
+    return <span fg={toFg(theme.error)}>● </span>;
   }
   if (branch.status.dirty) {
-    return <span fg="yellow">● </span>;
+    return <span fg={toFg(theme.warning)}>● </span>;
   }
-  return <span fg="green">● </span>;
+  return <span fg={toFg(theme.success)}>● </span>;
 }
 
 function BranchBadges({ branch }: { branch: Branch }) {
+  const theme = t();
   const badges: React.ReactNode[] = [];
   
   if (branch.locked) {
-    badges.push(<span key="lock" fg="red"> [locked]</span>);
+    badges.push(<span key="lock" fg={toFg(theme.badgeLocked)}> [locked]</span>);
   }
   if (branch.merged) {
-    badges.push(<span key="merged" fg="blue"> [merged]</span>);
+    badges.push(<span key="merged" fg={toFg(theme.badgeMerged)}> [merged]</span>);
   }
   if (branch.isMain) {
-    badges.push(<span key="main" fg="magenta"> [main]</span>);
+    badges.push(<span key="main" fg={toFg(theme.badgeMain)}> [main]</span>);
   }
   if (branch.status.ahead > 0) {
-    badges.push(<span key="ahead" fg="cyan"> ↑{branch.status.ahead}</span>);
+    badges.push(<span key="ahead" fg={toFg(theme.info)}> ↑{branch.status.ahead}</span>);
   }
   if (branch.status.behind > 0) {
-    badges.push(<span key="behind" fg="red"> ↓{branch.status.behind}</span>);
+    badges.push(<span key="behind" fg={toFg(theme.error)}> ↓{branch.status.behind}</span>);
   }
   
   return <>{badges}</>;
@@ -666,16 +682,19 @@ function BranchDetails({ branch }: { branch: Branch }) {
 }
 
 function ActionBar({ actions }: { actions: ActionHint[] }) {
+  const theme = t();
   return (
     <text>
       {actions.map((action, i) => {
         const isDim = !action.enabled;
         const isHighlight = action.enabled && action.highlight;
+        const keyColor = isDim ? toFg(theme.actionDisabled) : isHighlight ? toFg(theme.actionHighlight) : toFg(theme.actionKey);
+        const labelColor = isDim ? toFg(theme.actionDisabled) : isHighlight ? toFg(theme.actionHighlight) : undefined;
         return (
           <span key={action.key}>
             {i > 0 && <span>  </span>}
-            <span dim={isDim} fg={isHighlight ? 'yellow' : (action.enabled ? 'cyan' : undefined)}>[{action.key}]</span>
-            <span dim={isDim} fg={isHighlight ? 'yellow' : undefined}> {action.label}</span>
+            <span dim={isDim} fg={keyColor}>[{action.key}]</span>
+            <span dim={isDim} fg={labelColor}> {action.label}</span>
           </span>
         );
       })}
@@ -692,12 +711,13 @@ function StatusLine({
   status: string; 
   selectedItem: SelectedItem;
 }) {
+  const theme = t();
   if (isRefreshing) {
-    return <text fg="cyan">Refreshing...</text>;
+    return <text fg={toFg(theme.info)}>Refreshing...</text>;
   }
   
   if (status) {
-    return <text fg="green">{status}</text>;
+    return <text fg={toFg(theme.success)}>{status}</text>;
   }
   
   if (selectedItem?.type === 'branch') {
