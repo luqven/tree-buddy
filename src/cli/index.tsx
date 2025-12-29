@@ -8,13 +8,13 @@ import { createCliAdapter } from "./CliAdapter";
 let renderer: CliRenderer | null = null;
 let root: Root | null = null;
 
-async function cleanup() {
+function cleanup() {
   if (root) {
     root.unmount();
     root = null;
   }
   if (renderer) {
-    renderer.cleanup();
+    renderer.destroy();
     renderer = null;
   }
 }
@@ -24,8 +24,8 @@ async function main() {
     exitOnCtrlC: false, // We'll handle it ourselves
   });
   
-  const adapter = createCliAdapter(async () => {
-    await cleanup();
+  const adapter = createCliAdapter(() => {
+    cleanup();
     process.exit(0);
   });
   
@@ -35,8 +35,8 @@ async function main() {
   root.render(<App service={service} />);
 }
 
-main().catch(async (err) => {
-  await cleanup();
+main().catch((err) => {
+  cleanup();
   console.error(err);
   process.exit(1);
 });
