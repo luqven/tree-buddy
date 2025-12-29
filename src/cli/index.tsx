@@ -1,21 +1,42 @@
 import React from 'react';
-import { createCliRenderer } from "@opentui/core";
-import { createRoot } from "@opentui/react";
+import { createCliRenderer, CliRenderer } from "@opentui/core";
+import { createRoot, Root } from "@opentui/react";
 import { App } from "./App";
 import { AppService } from "../services/AppService";
-import { cliAdapter } from "./CliAdapter";
+import { createCliAdapter } from "./CliAdapter";
+
+let renderer: CliRenderer | null = null;
+let root: Root | null = null;
+
+async function cleanup() {
+  if (root) {
+    root.unmount();
+    root = null;
+  }
+  if (renderer) {
+    renderer.cleanup();
+    renderer = null;
+  }
+}
 
 async function main() {
-  const service = new AppService(cliAdapter);
-  const renderer = await createCliRenderer({
-    exitOnCtrlC: true,
+  renderer = await createCliRenderer({
+    exitOnCtrlC: false, // We'll handle it ourselves
   });
   
-  const root = createRoot(renderer);
+  const adapter = createCliAdapter(async () => {
+    await cleanup();
+    process.exit(0);
+  });
+  
+  const service = new AppService(adapter);
+  
+  root = createRoot(renderer);
   root.render(<App service={service} />);
 }
 
-main().catch(err => {
+main().catch(async (err) => {
+  await cleanup();
   console.error(err);
   process.exit(1);
 });
