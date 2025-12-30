@@ -3,13 +3,13 @@ import { createCliRenderer, CliRenderer } from "@opentui/core";
 import { createRoot, Root } from "@opentui/react";
 import { spawn } from "child_process";
 import { writeFileSync, unlinkSync, existsSync } from "fs";
-import { tmpdir } from "os";
 import { join } from "path";
 import { App } from "./App";
 import { AppService } from "../services/AppService";
 import { createCliAdapter } from "./CliAdapter";
 
-const CD_PATH_FILE = join(tmpdir(), 'tree-buddy-cd-path');
+// Use /tmp directly for compatibility with shell function (not tmpdir() which resolves to /var/folders/... on macOS)
+const CD_PATH_FILE = '/tmp/tree-buddy-cd-path';
 
 let renderer: CliRenderer | null = null;
 let root: Root | null = null;
