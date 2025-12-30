@@ -731,7 +731,7 @@ export function App({ service }: { service: AppService }) {
     const highlight = toFg(theme.actionHighlight);
     return (
       <box flexDirection="column" style={{ width, height, padding: 1 }}>
-        <box border title="Help - Press ? or q to close" flexGrow={1}>
+        <box border borderColor={toFg(theme.border)} title="Help - Press ? or q to close" flexGrow={1}>
           <box flexDirection="column" style={{ padding: 1 }}>
             <text bold fg={primary}>Navigation</text>
             <text fg={text}>  <span fg={highlight}>↑/k</span>  Move up</text>
@@ -766,51 +766,48 @@ export function App({ service }: { service: AppService }) {
   // Render command palette
   if (mode === 'command-palette') {
     const theme = c();
-    const text = toFg(theme.text);
-    const primary = toFg(theme.primary);
-    const selection = toFg(theme.selection);
-    const muted = toFg(theme.textMuted);
+    const textColor = toFg(theme.text);
+    const primaryColor = toFg(theme.primary);
+    const selectionColor = toFg(theme.selection);
+    const mutedColor = toFg(theme.textMuted);
+    const borderColor = toFg(theme.border);
     
-    // Calculate flat index for highlighting
-    let flatIdx = 0;
+    // Pre-compute flat command list with indices
+    const flatCommands: Array<{ cmd: Command; groupIdx: number; isFirst: boolean; category: string }> = [];
+    groupedCommands.forEach((group, groupIdx) => {
+      group.commands.forEach((cmd, cmdIdx) => {
+        flatCommands.push({ cmd, groupIdx, isFirst: cmdIdx === 0, category: group.category });
+      });
+    });
     
     return (
       <box flexDirection="column" style={{ width, height, padding: 1 }}>
-        <box border title="Commands - Type to filter, Esc to close" flexGrow={1}>
+        <box border borderColor={borderColor} title="Commands - Type to filter, Esc to close" flexGrow={1}>
           <box flexDirection="column" style={{ padding: 1 }}>
             {/* Filter input */}
-            <text fg={text}>
-              <span fg={primary}>&gt; </span>
-              <span fg={text}>{paletteFilter}</span>
-              <span fg={muted}>_</span>
+            <text fg={textColor}>
+              <span fg={primaryColor}>&gt; </span>
+              {paletteFilter}
+              <span fg={mutedColor}>_</span>
             </text>
-            <text fg={text}> </text>
+            <text fg={textColor}> </text>
             
-            {/* Grouped commands */}
+            {/* Flat command list */}
             <scrollbox flexGrow={1} focused>
-              {groupedCommands.length === 0 ? (
-                <text fg={muted}>No matching commands</text>
+              {flatCommands.length === 0 ? (
+                <text fg={mutedColor}>No matching commands</text>
               ) : (
-                groupedCommands.map(group => {
-                  const groupStartIdx = flatIdx;
+                flatCommands.map((item, idx) => {
+                  const isSelected = idx === paletteIndex;
                   return (
-                    <box key={group.category} flexDirection="column">
-                      <text bold fg={muted}>{group.category}</text>
-                      {group.commands.map((cmd) => {
-                        const isSelected = flatIdx === paletteIndex;
-                        const currentIdx = flatIdx;
-                        flatIdx++;
-                        return (
-                          <box key={cmd.id} style={{ paddingLeft: 2 }}>
-                            <text fg={text}>
-                              <span fg={isSelected ? selection : text}>
-                                {isSelected ? '> ' : '  '}{cmd.title}
-                              </span>
-                              {cmd.key && <span fg={muted}>  {cmd.key}</span>}
-                            </text>
-                          </box>
-                        );
-                      })}
+                    <box key={item.cmd.id} flexDirection="column">
+                      {item.isFirst && <text bold fg={mutedColor}>{item.category}</text>}
+                      <box style={{ paddingLeft: 2 }}>
+                        <text fg={isSelected ? selectionColor : textColor}>
+                          {isSelected ? '> ' : '  '}{item.cmd.title}
+                          {item.cmd.key && <span fg={mutedColor}>  {item.cmd.key}</span>}
+                        </text>
+                      </box>
                     </box>
                   );
                 })
@@ -829,10 +826,11 @@ export function App({ service }: { service: AppService }) {
     const primary = toFg(theme.primary);
     const selection = toFg(theme.selection);
     const muted = toFg(theme.textMuted);
+    const border = toFg(theme.border);
     
     return (
       <box flexDirection="column" style={{ width, height, padding: 1 }}>
-        <box border title="Select Theme - ↑/↓ preview, Enter apply, Esc cancel" flexGrow={1}>
+        <box border borderColor={border} title="Select Theme - ↑/↓ preview, Enter apply, Esc cancel" flexGrow={1}>
           <box flexDirection="column" style={{ padding: 1 }}>
             <scrollbox flexGrow={1} focused>
               {themeNames.map((name, i) => {
@@ -860,9 +858,10 @@ export function App({ service }: { service: AppService }) {
     const text = toFg(theme.text);
     const selection = toFg(theme.selection);
     const muted = toFg(theme.textMuted);
+    const border = toFg(theme.border);
     return (
       <box flexDirection="column" style={{ width, height, padding: 1 }}>
-        <box border title="Add Project - ↑/↓ select, Enter add, Esc cancel" flexGrow={1}>
+        <box border borderColor={border} title="Add Project - ↑/↓ select, Enter add, Esc cancel" flexGrow={1}>
           <scrollbox flexGrow={1} focused>
             {candidates.length === 0 ? (
               <text fg={muted}>No new projects found</text>
@@ -890,9 +889,10 @@ export function App({ service }: { service: AppService }) {
     const highlight = toFg(theme.actionHighlight);
     const selection = toFg(theme.selection);
     const muted = toFg(theme.textMuted);
+    const border = toFg(theme.border);
     return (
       <box flexDirection="column" style={{ width, height, padding: 1 }}>
-        <box border title="Create Worktree - Esc cancel" flexGrow={1}>
+        <box border borderColor={border} title="Create Worktree - Esc cancel" flexGrow={1}>
           <box flexDirection="column" style={{ padding: 1 }}>
             {createState.step === 'name' ? (
               <>
@@ -929,11 +929,12 @@ export function App({ service }: { service: AppService }) {
 
   // Render confirm dialog
   if (mode === 'confirm-delete' && confirm) {
+    const theme = c();
     return (
       <box flexDirection="column" style={{ width, height, padding: 1 }}>
         <box flexGrow={1} />
-        <box border style={{ padding: 1 }}>
-          <text fg={toFg(c().warning)}>{confirm.msg}</text>
+        <box border borderColor={toFg(theme.border)} style={{ padding: 1 }}>
+          <text fg={toFg(theme.warning)}>{confirm.msg}</text>
         </box>
         <box flexGrow={1} />
       </box>
@@ -950,7 +951,7 @@ export function App({ service }: { service: AppService }) {
         </text>
       </box>
 
-      <scrollbox flexGrow={1} border title="Projects" focused>
+      <scrollbox flexGrow={1} border borderColor={toFg(c().border)} title="Projects" focused>
         {allItems.length === 0 ? (
           <box style={{ padding: 1 }}>
             <text fg={toFg(c().textMuted)}>No projects. Press 'a' to add one.</text>

@@ -70,6 +70,7 @@ describe('theme', () => {
       expect(colors.error).toBeDefined();
       expect(colors.info).toBeDefined();
       expect(colors.selection).toBeDefined();
+      expect(colors.border).toBeDefined();
       expect(colors.badgeMerged).toBeDefined();
       expect(colors.badgeLocked).toBeDefined();
       expect(colors.badgeMain).toBeDefined();
@@ -361,6 +362,7 @@ describe('theme', () => {
           expect(theme.dark.error).toBeDefined();
           expect(theme.dark.info).toBeDefined();
           expect(theme.dark.selection).toBeDefined();
+          expect(theme.dark.border).toBeDefined();
           expect(theme.dark.badgeMerged).toBeDefined();
           expect(theme.dark.badgeLocked).toBeDefined();
           expect(theme.dark.badgeMain).toBeDefined();
@@ -379,6 +381,7 @@ describe('theme', () => {
           expect(theme.light.error).toBeDefined();
           expect(theme.light.info).toBeDefined();
           expect(theme.light.selection).toBeDefined();
+          expect(theme.light.border).toBeDefined();
           expect(theme.light.badgeMerged).toBeDefined();
           expect(theme.light.badgeLocked).toBeDefined();
           expect(theme.light.badgeMain).toBeDefined();

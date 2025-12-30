@@ -15,6 +15,7 @@ export interface ColorPalette {
   error: string;          // Behind/problems
   info: string;           // Informational
   selection: string;      // Selected item marker
+  border: string;         // Border color for boxes
   badgeMerged: string;    // Merged badge
   badgeLocked: string;    // Locked badge
   badgeMain: string;      // Main branch badge
@@ -45,6 +46,7 @@ export const solarizedTheme: Theme = {
     error: '#dc322f',       // red
     info: '#2aa198',        // cyan
     selection: '#2aa198',
+    border: '#586e75',      // base01 - subtle border
     badgeMerged: '#268bd2',
     badgeLocked: '#dc322f',
     badgeMain: '#d33682',   // magenta
@@ -62,6 +64,7 @@ export const solarizedTheme: Theme = {
     error: '#dc322f',
     info: '#2aa198',
     selection: '#2aa198',
+    border: '#93a1a1',      // base1 - subtle border
     badgeMerged: '#268bd2',
     badgeLocked: '#dc322f',
     badgeMain: '#d33682',
@@ -87,6 +90,7 @@ export const draculaTheme: Theme = {
     error: '#ff5555',       // red
     info: '#8be9fd',        // cyan
     selection: '#bd93f9',
+    border: '#6272a4',      // comment color for border
     badgeMerged: '#bd93f9',
     badgeLocked: '#ff5555',
     badgeMain: '#8be9fd',
@@ -104,6 +108,7 @@ export const draculaTheme: Theme = {
     error: '#e02020',       // red (adjusted)
     info: '#0dcbc0',
     selection: '#9580ff',
+    border: '#6272a4',      // comment color for border
     badgeMerged: '#9580ff',
     badgeLocked: '#e02020',
     badgeMain: '#0dcbc0',
@@ -129,6 +134,7 @@ export const nordTheme: Theme = {
     error: '#bf616a',       // nord11 (red)
     info: '#81a1c1',        // nord9
     selection: '#81a1c1',
+    border: '#4c566a',      // nord3 for border
     badgeMerged: '#88c0d0',
     badgeLocked: '#bf616a',
     badgeMain: '#81a1c1',
@@ -146,6 +152,7 @@ export const nordTheme: Theme = {
     error: '#b91c1c',       // darker red
     info: '#5e81ac',
     selection: '#5e81ac',
+    border: '#9ca3af',      // gray for border
     badgeMerged: '#0d9488',
     badgeLocked: '#b91c1c',
     badgeMain: '#5e81ac',
@@ -171,6 +178,7 @@ export const monokaiTheme: Theme = {
     error: '#f92672',       // red/pink
     info: '#66d9ef',        // cyan
     selection: '#e6db74',
+    border: '#75715e',      // comment color for border
     badgeMerged: '#ae81ff',
     badgeLocked: '#f92672',
     badgeMain: '#a6e22e',
@@ -188,6 +196,7 @@ export const monokaiTheme: Theme = {
     error: '#db2777',       // pink (adjusted)
     info: '#0891b2',        // cyan (adjusted)
     selection: '#9a8000',
+    border: '#75715e',      // comment color for border
     badgeMerged: '#7c3aed',
     badgeLocked: '#db2777',
     badgeMain: '#65a30d',
