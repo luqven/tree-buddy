@@ -1,5 +1,36 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
 dist-preload/
+*.tsbuildinfo
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Logs
 *.log
+logs/
+
+# IDE/Editor
+.idea/
+.vscode/
+*.sublime-*
+*.swp
+*.swo
+*~
+
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Test coverage
+coverage/
+
+# Misc
+.cache/
+tmp/
