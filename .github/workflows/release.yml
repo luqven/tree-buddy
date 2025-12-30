@@ -18,8 +18,13 @@ jobs:
       - name: Install dependencies
         run: bun install
       
+      - name: Configure git for tests
+        run: |
+          git config --global user.email "ci@tree-buddy.dev"
+          git config --global user.name "Tree Buddy CI"
+      
       - name: Run tests
-        run: bun test
+        run: npm test
       
       - name: Get version from tag
         id: version
