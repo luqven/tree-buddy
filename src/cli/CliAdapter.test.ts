@@ -7,6 +7,7 @@ describe('CliAdapter', () => {
   const createOpts = () => ({
     onQuit: vi.fn(),
     onCdQuit: vi.fn(),
+    onSubshell: vi.fn(),
   });
 
   it('creates adapter with all required methods', () => {
@@ -20,6 +21,7 @@ describe('CliAdapter', () => {
     expect(adapter.getDocumentsPath).toBeDefined();
     expect(adapter.quit).toBeDefined();
     expect(adapter.cdAndQuit).toBeDefined();
+    expect(adapter.openSubshell).toBeDefined();
   });
 
   it('calls onQuit callback when quit is called', () => {
@@ -67,5 +69,14 @@ describe('CliAdapter', () => {
     adapter.cdAndQuit('/some/path');
 
     expect(opts.onCdQuit).toHaveBeenCalledWith('/some/path');
+  });
+
+  it('calls onSubshell with path when openSubshell is called', () => {
+    const opts = createOpts();
+    const adapter = createCliAdapter(opts);
+
+    adapter.openSubshell('/worktree/path');
+
+    expect(opts.onSubshell).toHaveBeenCalledWith('/worktree/path');
   });
 });

@@ -1,7 +1,7 @@
 import React from 'react';
 import { createCliRenderer, CliRenderer } from "@opentui/core";
 import { createRoot, Root } from "@opentui/react";
-import { spawnSync } from "child_process";
+import { spawn } from "child_process";
 import { App } from "./App";
 import { AppService } from "../services/AppService";
 import { createCliAdapter } from "./CliAdapter";
@@ -18,6 +18,12 @@ function cleanup() {
     renderer.destroy();
     renderer = null;
   }
+  // Ensure terminal is back to normal mode
+  if (process.stdin.isTTY) {
+    process.stdin.setRawMode(false);
+  }
+  // Clear alternate screen buffer and reset cursor
+  process.stdout.write('\x1b[?1049l\x1b[?25h');
 }
 
 async function main() {
@@ -32,14 +38,26 @@ async function main() {
     },
     onCdQuit: (path: string) => {
       cleanup();
-      console.log(`Entering ${path}...`);
+      // Output path for shell alias to capture: alias tb='cd "$(tree-buddy)"'
+      console.log(path);
+      process.exit(0);
+    },
+    onSubshell: (path: string) => {
+      cleanup();
+      console.log(`Opening subshell in ${path}...`);
+      console.log('Type "exit" to return.\n');
       const shell = process.env.SHELL || '/bin/zsh';
-      spawnSync(shell, [], {
+      const child = spawn(shell, ['-i'], {
         cwd: path,
         stdio: 'inherit',
-        env: process.env,
+        detached: true,
       });
-      process.exit(0);
+      // Transfer control to child
+      child.on('exit', (code) => {
+        process.exit(code ?? 0);
+      });
+      // Unref so parent doesn't wait
+      child.unref();
     },
   });
   

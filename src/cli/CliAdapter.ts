@@ -6,10 +6,12 @@ import { exec } from 'child_process';
 export interface CliAdapterOpts {
   onQuit: () => void;
   onCdQuit: (path: string) => void;
+  onSubshell: (path: string) => void;
 }
 
 export interface CliPlatformAdapter extends PlatformAdapter {
   cdAndQuit: (path: string) => void;
+  openSubshell: (path: string) => void;
 }
 
 export function createCliAdapter(opts: CliAdapterOpts): CliPlatformAdapter {
@@ -34,5 +36,6 @@ export function createCliAdapter(opts: CliAdapterOpts): CliPlatformAdapter {
     getDocumentsPath: () => join(homedir(), 'Documents'),
     quit: opts.onQuit,
     cdAndQuit: opts.onCdQuit,
+    openSubshell: opts.onSubshell,
   };
 }

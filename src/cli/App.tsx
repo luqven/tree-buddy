@@ -55,11 +55,10 @@ function getContextualActions(item: SelectedItem, totalItems: number): ActionHin
   if (item?.type === 'project') {
     return [
       { key: 'enter', label: 'cd', enabled: true },
+      { key: 's', label: 'subshell', enabled: true },
       { key: 'o', label: 'open', enabled: true },
-      { key: 't', label: 'terminal', enabled: true },
       { key: 'n', label: 'new worktree', enabled: true },
       { key: 'x', label: 'remove', enabled: true },
-      { key: 'a', label: 'add project', enabled: true },
       { key: '?', label: 'help', enabled: true },
     ];
   }
@@ -75,10 +74,9 @@ function getContextualActions(item: SelectedItem, totalItems: number): ActionHin
 
     return [
       { key: 'enter', label: 'cd', enabled: true },
-      { key: 'o', label: 'open', enabled: true },
+      { key: 's', label: 'subshell', enabled: true },
       { key: 'd', label: 'delete', enabled: canDelete, highlight: isMerged },
       { key: 'l', label: br.locked ? 'unlock' : 'lock', enabled: canLock },
-      { key: 'f', label: 'fetch', enabled: true },
       { key: 'p', label: 'pull', enabled: canPull, highlight: isBehind && canPull },
       { key: '?', label: 'help', enabled: true },
     ];
@@ -87,7 +85,7 @@ function getContextualActions(item: SelectedItem, totalItems: number): ActionHin
   // Fallback
   return [
     { key: 'enter', label: 'cd', enabled: true },
-    { key: 'o', label: 'open', enabled: true },
+    { key: 's', label: 'subshell', enabled: true },
     { key: '?', label: 'help', enabled: true },
   ];
 }
@@ -106,13 +104,14 @@ interface CreateWorktreeState {
   selectedIdx: number;
 }
 
+interface CliPlatformAdapter {
+  cdAndQuit: (path: string) => void;
+  openSubshell: (path: string) => void;
+}
+
 interface AppProps {
   service: AppService;
   adapter?: CliPlatformAdapter;
-}
-
-interface CliPlatformAdapter {
-  cdAndQuit: (path: string) => void;
 }
 
 export function App({ service, adapter }: AppProps) {
@@ -589,13 +588,24 @@ export function App({ service, adapter }: AppProps) {
       return;
     }
 
-    // Enter: cd to selected worktree and quit
+    // Enter: cd to selected worktree and quit (requires shell alias)
     if (event.name === 'return') {
       if (selectedItem && adapter?.cdAndQuit) {
         const path = selectedItem.type === 'project' 
           ? (selectedItem.data as Project).root 
           : (selectedItem.data as Branch).path;
         adapter.cdAndQuit(path);
+      }
+      return;
+    }
+
+    // s: open subshell in selected worktree
+    if (event.name === 's') {
+      if (selectedItem && adapter?.openSubshell) {
+        const path = selectedItem.type === 'project' 
+          ? (selectedItem.data as Project).root 
+          : (selectedItem.data as Branch).path;
+        adapter.openSubshell(path);
       }
       return;
     }
@@ -756,7 +766,8 @@ export function App({ service, adapter }: AppProps) {
             <text bold fg={primary}>Navigation</text>
             <text fg={text}>  <span fg={highlight}>↑/k</span>    Move up</text>
             <text fg={text}>  <span fg={highlight}>↓/j</span>    Move down</text>
-            <text fg={text}>  <span fg={highlight}>enter</span>  cd to worktree</text>
+            <text fg={text}>  <span fg={highlight}>enter</span>  cd to worktree (needs alias)</text>
+            <text fg={text}>  <span fg={highlight}>s</span>      Open subshell in worktree</text>
             <text fg={text}>  <span fg={highlight}>q</span>      Quit</text>
             <text fg={text}>  <span fg={highlight}>/</span>      Command palette</text>
             <text fg={text}> </text>
@@ -766,18 +777,18 @@ export function App({ service, adapter }: AppProps) {
             <text fg={text}>  <span fg={highlight}>r</span>      Refresh all</text>
             <text fg={text}> </text>
             <text bold fg={primary}>Worktree Management</text>
-            <text fg={text}>  <span fg={highlight}>n</span>    Create new worktree</text>
-            <text fg={text}>  <span fg={highlight}>d</span>    Delete worktree</text>
-            <text fg={text}>  <span fg={highlight}>D</span>    Delete all merged worktrees</text>
-            <text fg={text}>  <span fg={highlight}>l</span>    Toggle lock</text>
+            <text fg={text}>  <span fg={highlight}>n</span>      Create new worktree</text>
+            <text fg={text}>  <span fg={highlight}>d</span>      Delete worktree</text>
+            <text fg={text}>  <span fg={highlight}>D</span>      Delete all merged</text>
+            <text fg={text}>  <span fg={highlight}>l</span>      Toggle lock</text>
             <text fg={text}> </text>
             <text bold fg={primary}>Git Operations</text>
-            <text fg={text}>  <span fg={highlight}>f</span>    Fetch</text>
-            <text fg={text}>  <span fg={highlight}>p</span>    Pull</text>
+            <text fg={text}>  <span fg={highlight}>f</span>      Fetch</text>
+            <text fg={text}>  <span fg={highlight}>p</span>      Pull</text>
             <text fg={text}> </text>
             <text bold fg={primary}>Projects</text>
-            <text fg={text}>  <span fg={highlight}>a</span>    Add project</text>
-            <text fg={text}>  <span fg={highlight}>x</span>    Remove project</text>
+            <text fg={text}>  <span fg={highlight}>a</span>      Add project</text>
+            <text fg={text}>  <span fg={highlight}>x</span>      Remove project</text>
           </box>
         </box>
       </box>
