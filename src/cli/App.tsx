@@ -3,12 +3,30 @@ import { useKeyboard, useTerminalDimensions } from '@opentui/react';
 import { AppService, AppState } from '../services/AppService';
 import { Project, Branch, WorktreeCandidate } from '../core/types';
 import { join, dirname, basename } from 'path';
-import { getTheme, toFg } from './theme';
+import { 
+  getTheme, 
+  toFg, 
+  setTheme, 
+  getThemeNames, 
+  previewTheme, 
+  commitPreview, 
+  cancelPreview 
+} from './theme';
 
 // Get theme colors helper
 const t = () => getTheme().colors;
 
-type Mode = 'normal' | 'help' | 'confirm-delete' | 'add-project' | 'create-worktree' | 'select-branch';
+type Mode = 'normal' | 'help' | 'confirm-delete' | 'add-project' | 'create-worktree' | 'select-branch' | 'command-palette' | 'select-theme';
+
+// Command palette types
+interface Command {
+  id: string;
+  title: string;
+  key?: string;
+  category: string;
+  enabled: boolean;
+  onSelect: () => void;
+}
 
 interface ActionHint {
   key: string;
@@ -95,6 +113,22 @@ export function App({ service }: { service: AppService }) {
   const [candidateIdx, setCandidateIdx] = useState(0);
   const [createState, setCreateState] = useState<CreateWorktreeState | null>(null);
   const [inputValue, setInputValue] = useState('');
+  
+  // Command palette state
+  const [paletteFilter, setPaletteFilter] = useState('');
+  const [paletteIndex, setPaletteIndex] = useState(0);
+  
+  // Theme selector state
+  const [themeIndex, setThemeIndex] = useState(0);
+  const themeNames = useMemo(() => getThemeNames(), []);
+  
+  // Load persisted theme on mount
+  useEffect(() => {
+    const persisted = service.getPersistedTheme();
+    if (persisted) {
+      setTheme(persisted);
+    }
+  }, [service]);
 
   useEffect(() => {
     service.refreshAllThrottled();
@@ -170,6 +204,156 @@ export function App({ service }: { service: AppService }) {
     showStatus('Enter branch name');
   }, [selectedItem, service, showStatus]);
 
+  // Build command list for command palette
+  const commands = useMemo((): Command[] => {
+    const br = selectedItem?.type === 'branch' ? selectedItem.data as Branch : null;
+    const proj = selectedItem?.type === 'project' ? selectedItem.data as Project : null;
+    const canDelete = br && !br.isMain && !br.isCurrent && !br.locked;
+    const canLock = br && !br.isMain;
+    const canPull = br && !br.status.dirty;
+
+    return [
+      // Navigation
+      { id: 'quit', title: 'Quit', key: 'q', category: 'Navigation', enabled: true, onSelect: () => service.quit() },
+      
+      // Actions
+      { id: 'open', title: 'Open in Finder', key: 'o', category: 'Actions', enabled: !!selectedItem, onSelect: () => {
+        if (selectedItem) {
+          const path = selectedItem.type === 'project' ? (selectedItem.data as Project).root : (selectedItem.data as Branch).path;
+          service.openPath(path);
+          showStatus(`Opened: ${basename(path)}`);
+        }
+      }},
+      { id: 'terminal', title: 'Open in Terminal', key: 't', category: 'Actions', enabled: !!selectedItem, onSelect: () => {
+        if (selectedItem) {
+          const path = selectedItem.type === 'project' ? (selectedItem.data as Project).root : (selectedItem.data as Branch).path;
+          service.openInTerminal(path);
+          showStatus(`Terminal: ${basename(path)}`);
+        }
+      }},
+      { id: 'refresh', title: 'Refresh all', key: 'r', category: 'Actions', enabled: true, onSelect: () => {
+        showStatus('Refreshing...');
+        service.refreshAll(true).then(() => showStatus('Refreshed'));
+      }},
+      
+      // Worktree
+      { id: 'create', title: 'Create new worktree', key: 'n', category: 'Worktree', enabled: !!selectedItem, onSelect: () => startCreateWorktree() },
+      { id: 'delete', title: 'Delete worktree', key: 'd', category: 'Worktree', enabled: !!canDelete, onSelect: () => {
+        if (selectedItem?.type === 'branch') {
+          const brData = selectedItem.data as Branch;
+          const msg = brData.status.dirty 
+            ? `Delete ${brData.name}? (has uncommitted changes) [y/n]`
+            : `Delete ${brData.name}? [y/n]`;
+          handleConfirm(msg, () => {
+            showStatus(`Deleting ${brData.name}...`);
+            service.deleteWorktree(selectedItem.project.root, brData.path, brData.status.dirty, true)
+              .then((ok) => showStatus(ok ? `Deleted: ${brData.name}` : `Failed to delete: ${brData.name}`));
+          });
+        }
+      }},
+      { id: 'delete-merged', title: 'Delete all merged', key: 'D', category: 'Worktree', enabled: true, onSelect: () => {
+        const merged = allItems.filter((item) => {
+          if (item.type !== 'branch') return false;
+          const brData = item.data as Branch;
+          return brData.merged && !brData.isMain && !brData.isCurrent && !brData.locked && !brData.status.dirty;
+        });
+        if (merged.length === 0) {
+          showStatus('No merged branches to clean up');
+          return;
+        }
+        handleConfirm(`Delete ${merged.length} merged worktree(s)? [y/n]`, () => {
+          const items = merged.map((m) => ({
+            root: m.project.root,
+            path: (m.data as Branch).path,
+            force: false,
+            useTrash: true,
+          }));
+          showStatus(`Deleting ${items.length} worktrees...`);
+          service.deleteWorktrees(items).then((ok) => 
+            showStatus(ok ? `Deleted ${items.length} worktrees` : 'Some deletions failed')
+          );
+        });
+      }},
+      { id: 'lock', title: br?.locked ? 'Unlock worktree' : 'Lock worktree', key: 'l', category: 'Worktree', enabled: !!canLock, onSelect: () => {
+        if (selectedItem?.type === 'branch') {
+          const brData = selectedItem.data as Branch;
+          const action = brData.locked ? 'Unlocking' : 'Locking';
+          showStatus(`${action}...`);
+          const fn = brData.locked ? service.unlockWorktree.bind(service) : service.lockWorktree.bind(service);
+          fn(brData.path).then(() => showStatus(`${action.replace('ing', 'ed')}: ${brData.name}`));
+        }
+      }},
+      
+      // Git
+      { id: 'fetch', title: 'Fetch', key: 'f', category: 'Git', enabled: !!br, onSelect: () => {
+        if (selectedItem?.type === 'branch') {
+          const brData = selectedItem.data as Branch;
+          showStatus(`Fetching ${brData.name}...`);
+          service.fetchWorktree(brData.path).then(() => showStatus('Fetch complete'));
+        }
+      }},
+      { id: 'pull', title: 'Pull', key: 'p', category: 'Git', enabled: !!canPull, onSelect: () => {
+        if (selectedItem?.type === 'branch') {
+          const brData = selectedItem.data as Branch;
+          showStatus(`Pulling ${brData.name}...`);
+          service.pullWorktree(brData.path)
+            .then(() => showStatus('Pull complete'))
+            .catch((err: Error) => showStatus(`Pull failed: ${err.message}`));
+        }
+      }},
+      
+      // Projects
+      { id: 'add-project', title: 'Add project', key: 'a', category: 'Projects', enabled: true, onSelect: () => loadCandidates() },
+      { id: 'remove-project', title: 'Remove project', key: 'x', category: 'Projects', enabled: !!proj, onSelect: () => {
+        if (selectedItem?.type === 'project') {
+          const projData = selectedItem.data as Project;
+          handleConfirm(`Remove project ${projData.name}? [y/n]`, () => {
+            service.removeProject(projData.id);
+            showStatus(`Removed: ${projData.name}`);
+            setSelectedIndex(Math.max(0, selectedIndex - 1));
+          });
+        }
+      }},
+      
+      // Settings
+      { id: 'theme', title: 'Change theme...', category: 'Settings', enabled: true, onSelect: () => {
+        // Find current theme index
+        const currentThemeName = getTheme().name;
+        const idx = themeNames.indexOf(currentThemeName);
+        setThemeIndex(idx >= 0 ? idx : 0);
+        setMode('select-theme');
+      }},
+      { id: 'help', title: 'Show help', key: '?', category: 'Settings', enabled: true, onSelect: () => setMode('help') },
+    ];
+  }, [selectedItem, allItems, service, showStatus, handleConfirm, loadCandidates, startCreateWorktree, selectedIndex, themeNames]);
+
+  // Filter commands for palette
+  const filteredCommands = useMemo(() => {
+    const enabled = commands.filter(c => c.enabled);
+    if (!paletteFilter) return enabled;
+    const lower = paletteFilter.toLowerCase();
+    return enabled.filter(c => 
+      c.title.toLowerCase().includes(lower) ||
+      c.category.toLowerCase().includes(lower) ||
+      c.key?.toLowerCase().includes(lower)
+    );
+  }, [commands, paletteFilter]);
+
+  // Group filtered commands by category
+  const groupedCommands = useMemo(() => {
+    const groups: Record<string, Command[]> = {};
+    const order = ['Navigation', 'Actions', 'Worktree', 'Git', 'Projects', 'Settings'];
+    
+    filteredCommands.forEach(cmd => {
+      if (!groups[cmd.category]) groups[cmd.category] = [];
+      groups[cmd.category].push(cmd);
+    });
+    
+    return order
+      .filter(cat => groups[cat]?.length > 0)
+      .map(cat => ({ category: cat, commands: groups[cat] }));
+  }, [filteredCommands]);
+
   useKeyboard((event) => {
     // Global quit
     if (event.name === 'c' && event.ctrl) {
@@ -181,6 +365,73 @@ export function App({ service }: { service: AppService }) {
     if (mode === 'help') {
       if (event.name === 'escape' || event.name === 'q' || event.name === '?') {
         setMode('normal');
+      }
+      return;
+    }
+
+    if (mode === 'command-palette') {
+      if (event.name === 'escape') {
+        setPaletteFilter('');
+        setMode('normal');
+        return;
+      }
+      if (event.name === 'up' || (event.name === 'k' && !paletteFilter)) {
+        setPaletteIndex(prev => Math.max(0, prev - 1));
+        return;
+      }
+      if (event.name === 'down' || (event.name === 'j' && !paletteFilter)) {
+        setPaletteIndex(prev => Math.min(filteredCommands.length - 1, prev + 1));
+        return;
+      }
+      if (event.name === 'return') {
+        const cmd = filteredCommands[paletteIndex];
+        if (cmd) {
+          setPaletteFilter('');
+          setMode('normal');
+          cmd.onSelect();
+        }
+        return;
+      }
+      if (event.name === 'backspace') {
+        setPaletteFilter(prev => prev.slice(0, -1));
+        setPaletteIndex(0);
+        return;
+      }
+      // Type to filter
+      if (event.sequence && event.sequence.length === 1 && !event.ctrl && !event.meta) {
+        setPaletteFilter(prev => prev + event.sequence);
+        setPaletteIndex(0);
+        return;
+      }
+      return;
+    }
+
+    if (mode === 'select-theme') {
+      if (event.name === 'escape') {
+        cancelPreview();
+        setMode('command-palette');
+        return;
+      }
+      if (event.name === 'up' || event.name === 'k') {
+        const newIdx = Math.max(0, themeIndex - 1);
+        setThemeIndex(newIdx);
+        previewTheme(themeNames[newIdx]);
+        return;
+      }
+      if (event.name === 'down' || event.name === 'j') {
+        const newIdx = Math.min(themeNames.length - 1, themeIndex + 1);
+        setThemeIndex(newIdx);
+        previewTheme(themeNames[newIdx]);
+        return;
+      }
+      if (event.name === 'return') {
+        const themeName = commitPreview();
+        if (themeName) {
+          service.setTheme(themeName);
+          showStatus(`Theme: ${themeName}`);
+        }
+        setMode('normal');
+        return;
       }
       return;
     }
@@ -288,6 +539,14 @@ export function App({ service }: { service: AppService }) {
 
     if (event.name === '?') {
       setMode('help');
+      return;
+    }
+
+    // Open command palette with /
+    if (event.sequence === '/') {
+      setPaletteFilter('');
+      setPaletteIndex(0);
+      setMode('command-palette');
       return;
     }
 
@@ -457,6 +716,7 @@ export function App({ service }: { service: AppService }) {
             <text>  <span fg={highlight}>↑/k</span>  Move up</text>
             <text>  <span fg={highlight}>↓/j</span>  Move down</text>
             <text>  <span fg={highlight}>q</span>    Quit</text>
+            <text>  <span fg={highlight}>/</span>    Command palette</text>
             <text> </text>
             <text bold fg={primary}>Actions</text>
             <text>  <span fg={highlight}>o</span>    Open in Finder</text>
@@ -476,6 +736,94 @@ export function App({ service }: { service: AppService }) {
             <text bold fg={primary}>Projects</text>
             <text>  <span fg={highlight}>a</span>    Add project</text>
             <text>  <span fg={highlight}>x</span>    Remove project</text>
+          </box>
+        </box>
+      </box>
+    );
+  }
+
+  // Render command palette
+  if (mode === 'command-palette') {
+    const theme = t();
+    const primary = toFg(theme.primary);
+    const selection = toFg(theme.selection);
+    const muted = toFg(theme.muted);
+    
+    // Calculate flat index for highlighting
+    let flatIdx = 0;
+    
+    return (
+      <box flexDirection="column" style={{ width, height, padding: 1 }}>
+        <box border title="Commands - Type to filter, Esc to close" flexGrow={1}>
+          <box flexDirection="column" style={{ padding: 1 }}>
+            {/* Filter input */}
+            <text>
+              <span fg={primary}>&gt; </span>
+              <span>{paletteFilter}</span>
+              <span dim>_</span>
+            </text>
+            <text> </text>
+            
+            {/* Grouped commands */}
+            <scrollbox flexGrow={1} focused>
+              {groupedCommands.length === 0 ? (
+                <text dim>No matching commands</text>
+              ) : (
+                groupedCommands.map(group => {
+                  const groupStartIdx = flatIdx;
+                  return (
+                    <box key={group.category} flexDirection="column">
+                      <text bold fg={muted}>{group.category}</text>
+                      {group.commands.map((cmd) => {
+                        const isSelected = flatIdx === paletteIndex;
+                        const currentIdx = flatIdx;
+                        flatIdx++;
+                        return (
+                          <box key={cmd.id} style={{ paddingLeft: 2 }}>
+                            <text>
+                              <span fg={isSelected ? selection : undefined}>
+                                {isSelected ? '> ' : '  '}{cmd.title}
+                              </span>
+                              {cmd.key && <span dim>  {cmd.key}</span>}
+                            </text>
+                          </box>
+                        );
+                      })}
+                    </box>
+                  );
+                })
+              )}
+            </scrollbox>
+          </box>
+        </box>
+      </box>
+    );
+  }
+
+  // Render theme selector
+  if (mode === 'select-theme') {
+    const theme = t();
+    const primary = toFg(theme.primary);
+    const selection = toFg(theme.selection);
+    
+    return (
+      <box flexDirection="column" style={{ width, height, padding: 1 }}>
+        <box border title="Select Theme - ↑/↓ preview, Enter apply, Esc cancel" flexGrow={1}>
+          <box flexDirection="column" style={{ padding: 1 }}>
+            <scrollbox flexGrow={1} focused>
+              {themeNames.map((name, i) => {
+                const isSelected = i === themeIndex;
+                return (
+                  <box key={name} style={{ paddingLeft: 1 }}>
+                    <text fg={isSelected ? selection : undefined}>
+                      {isSelected ? '> ' : '  '}{name}
+                    </text>
+                  </box>
+                );
+              })}
+            </scrollbox>
+            <text> </text>
+            <text dim>Current: {getTheme().name}</text>
           </box>
         </box>
       </box>
@@ -570,7 +918,7 @@ export function App({ service }: { service: AppService }) {
       <box style={{ marginBottom: 1 }}>
         <text>
           <span fg={toFg(t().primary)} bold>Tree Buddy</span>
-          <span dim> | ? help | q quit</span>
+          <span dim> | / commands | ? help | q quit</span>
         </text>
       </box>
 

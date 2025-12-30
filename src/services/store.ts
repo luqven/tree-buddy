@@ -110,3 +110,10 @@ export function setScope(cfg: Config, enabled: boolean, delim?: string): Config 
 export function hasProject(cfg: Config, path: string): boolean {
   return cfg.projects.some((p) => p.root === path);
 }
+
+/**
+ * Set theme in config
+ */
+export function setThemeCfg(cfg: Config, theme: string): Config {
+  return { ...cfg, theme };
+}

@@ -101,5 +101,83 @@ describe('App TUI component', () => {
       
       expect(refreshSpy).toHaveBeenCalledWith(true);
     });
+
+    it('opens command palette when / is pressed', () => {
+      const { rerender } = render(<App service={service} />);
+      
+      expect(keyboardCallback).not.toBeNull();
+      
+      // Press / to open command palette
+      keyboardCallback!({ sequence: '/' });
+      
+      // Re-render to apply state change
+      rerender(<App service={service} />);
+      
+      // Now in command-palette mode, q should not quit
+      const quitSpy = vi.spyOn(service, 'quit');
+      keyboardCallback!({ name: 'q' });
+      
+      expect(quitSpy).not.toHaveBeenCalled();
+    });
+
+    it('closes command palette when Escape is pressed', () => {
+      const { rerender } = render(<App service={service} />);
+      
+      expect(keyboardCallback).not.toBeNull();
+      
+      // Press / to open command palette
+      keyboardCallback!({ sequence: '/' });
+      rerender(<App service={service} />);
+      
+      // Press Escape to close
+      keyboardCallback!({ name: 'escape' });
+      rerender(<App service={service} />);
+      
+      // Now should be back in normal mode, q should quit
+      const quitSpy = vi.spyOn(service, 'quit');
+      keyboardCallback!({ name: 'q' });
+      
+      expect(quitSpy).toHaveBeenCalled();
+    });
+
+    it('filters commands in palette with typed text', () => {
+      const { rerender } = render(<App service={service} />);
+      
+      expect(keyboardCallback).not.toBeNull();
+      
+      // Press / to open command palette
+      keyboardCallback!({ sequence: '/' });
+      rerender(<App service={service} />);
+      
+      // Type to filter - this should work without errors
+      keyboardCallback!({ sequence: 't', name: 't' });
+      rerender(<App service={service} />);
+      
+      // Press Escape to close
+      keyboardCallback!({ name: 'escape' });
+      rerender(<App service={service} />);
+    });
+
+    it('navigates command palette with arrow keys', () => {
+      const { rerender } = render(<App service={service} />);
+      
+      expect(keyboardCallback).not.toBeNull();
+      
+      // Press / to open command palette
+      keyboardCallback!({ sequence: '/' });
+      rerender(<App service={service} />);
+      
+      // Navigate down
+      keyboardCallback!({ name: 'down' });
+      rerender(<App service={service} />);
+      
+      // Navigate up
+      keyboardCallback!({ name: 'up' });
+      rerender(<App service={service} />);
+      
+      // Close
+      keyboardCallback!({ name: 'escape' });
+      rerender(<App service={service} />);
+    });
   });
 });

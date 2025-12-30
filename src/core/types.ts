@@ -57,6 +57,7 @@ export interface Config {
   scopeDelim: string; // default '/'
   scopeEnabled: boolean;
   projects: Project[];
+  theme?: string; // persisted theme name
 }
 
 /**

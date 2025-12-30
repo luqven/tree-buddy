@@ -69,6 +69,90 @@ export const solarizedTheme: Theme = {
 };
 
 /**
+ * Dracula theme - purple and cyan focused
+ */
+export const draculaTheme: Theme = {
+  name: 'dracula',
+  colors: {
+    primary: 'magenta',
+    secondary: 'cyan',
+    muted: 'brightBlack',
+    
+    success: 'green',
+    warning: 'yellow',
+    error: 'red',
+    info: 'cyan',
+    
+    selection: 'magenta',
+    badge: 'brightBlack',
+    badgeMerged: 'magenta',
+    badgeLocked: 'red',
+    badgeMain: 'cyan',
+    
+    actionKey: 'magenta',
+    actionLabel: 'white',
+    actionDisabled: 'brightBlack',
+    actionHighlight: 'cyan',
+  },
+};
+
+/**
+ * Nord theme - blue focused, calm colors
+ */
+export const nordTheme: Theme = {
+  name: 'nord',
+  colors: {
+    primary: 'blue',
+    secondary: 'cyan',
+    muted: 'brightBlack',
+    
+    success: 'green',
+    warning: 'yellow',
+    error: 'red',
+    info: 'blue',
+    
+    selection: 'blue',
+    badge: 'brightBlack',
+    badgeMerged: 'cyan',
+    badgeLocked: 'red',
+    badgeMain: 'blue',
+    
+    actionKey: 'blue',
+    actionLabel: 'white',
+    actionDisabled: 'brightBlack',
+    actionHighlight: 'cyan',
+  },
+};
+
+/**
+ * Monokai theme - warm colors, orange/yellow focused
+ */
+export const monokaiTheme: Theme = {
+  name: 'monokai',
+  colors: {
+    primary: 'yellow',
+    secondary: 'magenta',
+    muted: 'brightBlack',
+    
+    success: 'green',
+    warning: 'yellow',
+    error: 'red',
+    info: 'cyan',
+    
+    selection: 'yellow',
+    badge: 'brightBlack',
+    badgeMerged: 'magenta',
+    badgeLocked: 'red',
+    badgeMain: 'green',
+    
+    actionKey: 'yellow',
+    actionLabel: 'white',
+    actionDisabled: 'brightBlack',
+    actionHighlight: 'magenta',
+  },
+};
+
+/**
  * Default theme - same as solarized for now
  */
 export const defaultTheme = solarizedTheme;
@@ -78,6 +162,9 @@ export const defaultTheme = solarizedTheme;
  */
 export const themes: Record<string, Theme> = {
   solarized: solarizedTheme,
+  dracula: draculaTheme,
+  nord: nordTheme,
+  monokai: monokaiTheme,
   default: defaultTheme,
 };
 
@@ -85,6 +172,12 @@ export const themes: Record<string, Theme> = {
  * Current active theme
  */
 let currentTheme: Theme = defaultTheme;
+
+/**
+ * Preview state for theme switching
+ */
+let previewThemeName: string | null = null;
+let savedTheme: Theme = currentTheme;
 
 /**
  * Get the current theme
@@ -101,6 +194,55 @@ export function setTheme(name: string): void {
   if (theme) {
     currentTheme = theme;
   }
+}
+
+/**
+ * Get list of available theme names (excludes 'default' alias)
+ */
+export function getThemeNames(): string[] {
+  return Object.keys(themes).filter(n => n !== 'default');
+}
+
+/**
+ * Preview a theme without committing
+ * Call commitPreview() to keep or cancelPreview() to revert
+ */
+export function previewTheme(name: string): void {
+  if (!previewThemeName) {
+    savedTheme = currentTheme; // Save current before first preview
+  }
+  const theme = themes[name];
+  if (theme) {
+    previewThemeName = name;
+    currentTheme = theme;
+  }
+}
+
+/**
+ * Commit the previewed theme
+ * Returns the theme name that was committed, or null if no preview active
+ */
+export function commitPreview(): string | null {
+  const committed = previewThemeName;
+  previewThemeName = null;
+  return committed;
+}
+
+/**
+ * Cancel the preview and revert to the saved theme
+ */
+export function cancelPreview(): void {
+  if (previewThemeName) {
+    currentTheme = savedTheme;
+    previewThemeName = null;
+  }
+}
+
+/**
+ * Check if currently previewing a theme
+ */
+export function isPreviewing(): boolean {
+  return previewThemeName !== null;
 }
 
 /**

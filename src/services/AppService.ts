@@ -16,7 +16,7 @@ import {
   pullAsync,
   CreateWorktreeOpts,
 } from './git.js';
-import { load, save, addProject, rmProject, updateProject } from './store.js';
+import { load, save, addProject, rmProject, updateProject, setThemeCfg } from './store.js';
 import { loadScanCache, saveScanCache, isCacheStale } from './cache.js';
 import { log, logError } from '../main/logger.js';
 
@@ -290,5 +290,21 @@ export class AppService {
 
   async deleteWorktree(root: string, path: string, force = false, useTrash = false): Promise<boolean> {
     return this.deleteWorktrees([{ root, path, force, useTrash }]);
+  }
+
+  /**
+   * Set and persist the theme
+   */
+  setTheme(name: string): void {
+    this.cfg = setThemeCfg(this.cfg, name);
+    save(this.cfg);
+    this.notify();
+  }
+
+  /**
+   * Get the persisted theme name
+   */
+  getPersistedTheme(): string | undefined {
+    return this.cfg.theme;
   }
 }
