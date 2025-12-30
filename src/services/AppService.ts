@@ -17,7 +17,7 @@ import {
   CreateWorktreeOpts,
 } from './git.js';
 import { load, save, addProject, rmProject, updateProject, setThemeCfg, setTerminalModeCfg } from './store.js';
-import { loadScanCache, saveScanCache, isCacheStale } from './cache.js';
+import { loadScanCache, saveScanCache, clearScanCache } from './cache.js';
 import { log, logError } from '../main/logger.js';
 
 export interface AppState {
@@ -26,7 +26,6 @@ export interface AppState {
 }
 
 const REFRESH_THROTTLE = 30 * 1000;
-const SCAN_CACHE_TTL = 5 * 60 * 1000;
 
 export class AppService {
   private cfg: Config;
@@ -156,18 +155,12 @@ export class AppService {
   }
 
   async getCandidates(): Promise<WorktreeCandidate[]> {
-    console.log('[AppService] getCandidates called');
-    let cache = loadScanCache();
-    console.log('[AppService] cache loaded:', !!cache);
-    if (!cache || isCacheStale(cache, SCAN_CACHE_TTL)) {
-      console.log('[AppService] cache stale or missing, scanning docs path:', this.adapter.getDocumentsPath());
-      const candidates = await scanForWorktreesAsync(this.adapter.getDocumentsPath(), 3);
-      console.log('[AppService] scan complete, found candidates:', candidates.length);
-      cache = { ts: Date.now(), candidates };
-      saveScanCache(cache);
-    }
-    const filtered = cache.candidates.filter((c) => !this.cfg.projects.some((p) => p.root === c.path));
-    console.log('[AppService] filtered candidates:', filtered.length);
+    // Always clear cache and rescan to ensure fresh results
+    clearScanCache();
+    const candidates = await scanForWorktreesAsync(this.adapter.getDocumentsPath(), 3);
+    const cache = { ts: Date.now(), candidates };
+    saveScanCache(cache);
+    const filtered = candidates.filter((c) => !this.cfg.projects.some((p) => p.root === c.path));
     return filtered;
   }
 
