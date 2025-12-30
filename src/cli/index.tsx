@@ -1,13 +1,13 @@
 import React from 'react';
 import { createCliRenderer, CliRenderer } from "@opentui/core";
 import { createRoot, Root } from "@opentui/react";
+import { spawnSync } from "child_process";
 import { App } from "./App";
 import { AppService } from "../services/AppService";
-import { createCliAdapter, CliPlatformAdapter } from "./CliAdapter";
+import { createCliAdapter } from "./CliAdapter";
 
 let renderer: CliRenderer | null = null;
 let root: Root | null = null;
-let cdPath: string | null = null;
 
 function cleanup() {
   if (root) {
@@ -31,10 +31,14 @@ async function main() {
       process.exit(0);
     },
     onCdQuit: (path: string) => {
-      cdPath = path;
       cleanup();
-      // Output path for shell wrapper to cd into
-      console.log(path);
+      console.log(`Entering ${path}...`);
+      const shell = process.env.SHELL || '/bin/zsh';
+      spawnSync(shell, [], {
+        cwd: path,
+        stdio: 'inherit',
+        env: process.env,
+      });
       process.exit(0);
     },
   });
