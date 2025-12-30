@@ -3,7 +3,16 @@ import { homedir } from 'os';
 import { join } from 'path';
 import { exec } from 'child_process';
 
-export function createCliAdapter(onQuit: () => void): PlatformAdapter {
+export interface CliAdapterOpts {
+  onQuit: () => void;
+  onCdQuit: (path: string) => void;
+}
+
+export interface CliPlatformAdapter extends PlatformAdapter {
+  cdAndQuit: (path: string) => void;
+}
+
+export function createCliAdapter(opts: CliAdapterOpts): CliPlatformAdapter {
   return {
     openPath: async (path) => {
       exec(`open "${path}"`);
@@ -23,6 +32,7 @@ export function createCliAdapter(onQuit: () => void): PlatformAdapter {
       exec(`open -a Ghostty "${path}"`);
     },
     getDocumentsPath: () => join(homedir(), 'Documents'),
-    quit: onQuit,
+    quit: opts.onQuit,
+    cdAndQuit: opts.onCdQuit,
   };
 }

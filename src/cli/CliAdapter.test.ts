@@ -4,9 +4,14 @@ import { homedir } from 'os';
 import { join } from 'path';
 
 describe('CliAdapter', () => {
+  const createOpts = () => ({
+    onQuit: vi.fn(),
+    onCdQuit: vi.fn(),
+  });
+
   it('creates adapter with all required methods', () => {
-    const onQuit = vi.fn();
-    const adapter = createCliAdapter(onQuit);
+    const opts = createOpts();
+    const adapter = createCliAdapter(opts);
 
     expect(adapter.openPath).toBeDefined();
     expect(adapter.showItemInFolder).toBeDefined();
@@ -14,20 +19,21 @@ describe('CliAdapter', () => {
     expect(adapter.openTerminal).toBeDefined();
     expect(adapter.getDocumentsPath).toBeDefined();
     expect(adapter.quit).toBeDefined();
+    expect(adapter.cdAndQuit).toBeDefined();
   });
 
   it('calls onQuit callback when quit is called', () => {
-    const onQuit = vi.fn();
-    const adapter = createCliAdapter(onQuit);
+    const opts = createOpts();
+    const adapter = createCliAdapter(opts);
 
     adapter.quit();
 
-    expect(onQuit).toHaveBeenCalledTimes(1);
+    expect(opts.onQuit).toHaveBeenCalledTimes(1);
   });
 
   it('returns correct documents path', () => {
-    const onQuit = vi.fn();
-    const adapter = createCliAdapter(onQuit);
+    const opts = createOpts();
+    const adapter = createCliAdapter(opts);
 
     const docsPath = adapter.getDocumentsPath();
 
@@ -35,22 +41,31 @@ describe('CliAdapter', () => {
   });
 
   it('quit can be called multiple times', () => {
-    const onQuit = vi.fn();
-    const adapter = createCliAdapter(onQuit);
+    const opts = createOpts();
+    const adapter = createCliAdapter(opts);
 
     adapter.quit();
     adapter.quit();
     adapter.quit();
 
-    expect(onQuit).toHaveBeenCalledTimes(3);
+    expect(opts.onQuit).toHaveBeenCalledTimes(3);
   });
 
   it('quit callback receives no arguments', () => {
-    const onQuit = vi.fn();
-    const adapter = createCliAdapter(onQuit);
+    const opts = createOpts();
+    const adapter = createCliAdapter(opts);
 
     adapter.quit();
 
-    expect(onQuit).toHaveBeenCalledWith();
+    expect(opts.onQuit).toHaveBeenCalledWith();
+  });
+
+  it('calls onCdQuit with path when cdAndQuit is called', () => {
+    const opts = createOpts();
+    const adapter = createCliAdapter(opts);
+
+    adapter.cdAndQuit('/some/path');
+
+    expect(opts.onCdQuit).toHaveBeenCalledWith('/some/path');
   });
 });

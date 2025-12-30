@@ -3,10 +3,11 @@ import { createCliRenderer, CliRenderer } from "@opentui/core";
 import { createRoot, Root } from "@opentui/react";
 import { App } from "./App";
 import { AppService } from "../services/AppService";
-import { createCliAdapter } from "./CliAdapter";
+import { createCliAdapter, CliPlatformAdapter } from "./CliAdapter";
 
 let renderer: CliRenderer | null = null;
 let root: Root | null = null;
+let cdPath: string | null = null;
 
 function cleanup() {
   if (root) {
@@ -24,15 +25,24 @@ async function main() {
     exitOnCtrlC: false, // We'll handle it ourselves
   });
   
-  const adapter = createCliAdapter(() => {
-    cleanup();
-    process.exit(0);
+  const adapter = createCliAdapter({
+    onQuit: () => {
+      cleanup();
+      process.exit(0);
+    },
+    onCdQuit: (path: string) => {
+      cdPath = path;
+      cleanup();
+      // Output path for shell wrapper to cd into
+      console.log(path);
+      process.exit(0);
+    },
   });
   
-  const service = new AppService(adapter);
+  const service = new AppService(adapter as any);
   
   root = createRoot(renderer);
-  root.render(<App service={service} />);
+  root.render(<App service={service} adapter={adapter} />);
 }
 
 main().catch((err) => {

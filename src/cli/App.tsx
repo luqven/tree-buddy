@@ -3,6 +3,7 @@ import { useKeyboard, useTerminalDimensions } from '@opentui/react';
 import { AppService, AppState } from '../services/AppService';
 import { Project, Branch, WorktreeCandidate } from '../core/types';
 import { join, dirname, basename } from 'path';
+import { CliPlatformAdapter } from './CliAdapter';
 import { 
   getTheme,
   getColors,
@@ -53,12 +54,12 @@ function getContextualActions(item: SelectedItem, totalItems: number): ActionHin
   // Project selected
   if (item?.type === 'project') {
     return [
+      { key: 'enter', label: 'cd', enabled: true },
       { key: 'o', label: 'open', enabled: true },
       { key: 't', label: 'terminal', enabled: true },
       { key: 'n', label: 'new worktree', enabled: true },
       { key: 'x', label: 'remove', enabled: true },
       { key: 'a', label: 'add project', enabled: true },
-      { key: 'r', label: 'refresh', enabled: true },
       { key: '?', label: 'help', enabled: true },
     ];
   }
@@ -73,9 +74,8 @@ function getContextualActions(item: SelectedItem, totalItems: number): ActionHin
     const isMerged = br.merged && canDelete;
 
     return [
+      { key: 'enter', label: 'cd', enabled: true },
       { key: 'o', label: 'open', enabled: true },
-      { key: 't', label: 'terminal', enabled: true },
-      { key: 'n', label: 'new', enabled: true },
       { key: 'd', label: 'delete', enabled: canDelete, highlight: isMerged },
       { key: 'l', label: br.locked ? 'unlock' : 'lock', enabled: canLock },
       { key: 'f', label: 'fetch', enabled: true },
@@ -86,8 +86,8 @@ function getContextualActions(item: SelectedItem, totalItems: number): ActionHin
 
   // Fallback
   return [
+    { key: 'enter', label: 'cd', enabled: true },
     { key: 'o', label: 'open', enabled: true },
-    { key: 't', label: 'terminal', enabled: true },
     { key: '?', label: 'help', enabled: true },
   ];
 }
@@ -106,7 +106,16 @@ interface CreateWorktreeState {
   selectedIdx: number;
 }
 
-export function App({ service }: { service: AppService }) {
+interface AppProps {
+  service: AppService;
+  adapter?: CliPlatformAdapter;
+}
+
+interface CliPlatformAdapter {
+  cdAndQuit: (path: string) => void;
+}
+
+export function App({ service, adapter }: AppProps) {
   const [state, setState] = useState<AppState>(service.getState());
   const { width, height } = useTerminalDimensions();
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -580,6 +589,17 @@ export function App({ service }: { service: AppService }) {
       return;
     }
 
+    // Enter: cd to selected worktree and quit
+    if (event.name === 'return') {
+      if (selectedItem && adapter?.cdAndQuit) {
+        const path = selectedItem.type === 'project' 
+          ? (selectedItem.data as Project).root 
+          : (selectedItem.data as Branch).path;
+        adapter.cdAndQuit(path);
+      }
+      return;
+    }
+
     if (event.name === 'r') {
       showStatus('Refreshing...');
       service.refreshAll(true).then(() => showStatus('Refreshed'));
@@ -734,15 +754,16 @@ export function App({ service }: { service: AppService }) {
         <box border borderColor={toFg(theme.border)} title="Help - Press ? or q to close" flexGrow={1}>
           <box flexDirection="column" style={{ padding: 1 }}>
             <text bold fg={primary}>Navigation</text>
-            <text fg={text}>  <span fg={highlight}>↑/k</span>  Move up</text>
-            <text fg={text}>  <span fg={highlight}>↓/j</span>  Move down</text>
-            <text fg={text}>  <span fg={highlight}>q</span>    Quit</text>
-            <text fg={text}>  <span fg={highlight}>/</span>    Command palette</text>
+            <text fg={text}>  <span fg={highlight}>↑/k</span>    Move up</text>
+            <text fg={text}>  <span fg={highlight}>↓/j</span>    Move down</text>
+            <text fg={text}>  <span fg={highlight}>enter</span>  cd to worktree</text>
+            <text fg={text}>  <span fg={highlight}>q</span>      Quit</text>
+            <text fg={text}>  <span fg={highlight}>/</span>      Command palette</text>
             <text fg={text}> </text>
             <text bold fg={primary}>Actions</text>
-            <text fg={text}>  <span fg={highlight}>o</span>    Open in Finder</text>
-            <text fg={text}>  <span fg={highlight}>t</span>    Open in Terminal</text>
-            <text fg={text}>  <span fg={highlight}>r</span>    Refresh all</text>
+            <text fg={text}>  <span fg={highlight}>o</span>      Open in Finder</text>
+            <text fg={text}>  <span fg={highlight}>t</span>      Open in Terminal</text>
+            <text fg={text}>  <span fg={highlight}>r</span>      Refresh all</text>
             <text fg={text}> </text>
             <text bold fg={primary}>Worktree Management</text>
             <text fg={text}>  <span fg={highlight}>n</span>    Create new worktree</text>
