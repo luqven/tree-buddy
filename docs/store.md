@@ -1,16 +1,53 @@
 # Store Service
 
-The `store` service manages the application configuration and project persistence. It handles loading and saving data to `~/.config/tree-buddy/config.json`.
+The `store` service manages application configuration and project persistence. Located at `src/services/store.ts`.
 
-## Key Functions
+## Paths
 
-- `load()`: Loads the user configuration from disk.
-- `save(cfg)`: Persists the current configuration to disk.
-- `addProject(cfg, opts)`: Adds a new worktree project to the configuration.
-- `rmProject(cfg, id)`: Removes a project from the configuration.
-- `updateProject(cfg, proj)`: Updates an existing project's data.
+| Function | Description |
+|----------|-------------|
+| `getCfgPath(home?)` | Get path to config file (`~/.config/tree-buddy/config.json`) |
+
+## Config Operations
+
+| Function | Description |
+|----------|-------------|
+| `load(home?)` | Load config from disk. Returns default config if missing/invalid. |
+| `save(cfg, home?)` | Persist config to disk |
+
+## Project Management
+
+| Function | Description |
+|----------|-------------|
+| `addProject(cfg, opts)` | Add a new project to config |
+| `rmProject(cfg, id)` | Remove a project by ID |
+| `updateProject(cfg, proj)` | Update an existing project |
+| `getProject(cfg, id)` | Get a project by ID |
+| `hasProject(cfg, path)` | Check if a project path is already tracked |
+
+### AddProjectOpts
+
+```typescript
+interface AddProjectOpts {
+  path: string;   // Absolute path to worktree root
+  name?: string;  // Display name (defaults to directory name)
+}
+```
+
+## Scope Settings
+
+| Function | Description |
+|----------|-------------|
+| `setScope(cfg, enabled, delim?)` | Enable/disable branch scoping and set delimiter |
+
+## Theme Settings
+
+| Function | Description |
+|----------|-------------|
+| `setThemeCfg(cfg, theme)` | Set the theme name |
+| `setTerminalModeCfg(cfg, mode)` | Set terminal mode ('light' \| 'dark') |
 
 ## Resilience
 
-- `load()`: If the configuration file is missing or contains invalid JSON, the service gracefully falls back to a default configuration.
-- `addProject()`: Handles cases where the initial git scan of a project path fails by returning an entry with an empty branch list.
+- `load()` returns `defaultConfig()` if the config file is missing or contains invalid JSON
+- `addProject()` returns an entry with empty branches if git scan fails
