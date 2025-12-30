@@ -58,6 +58,7 @@ export interface Config {
   scopeEnabled: boolean;
   projects: Project[];
   theme?: string; // persisted theme name
+  terminalMode?: 'light' | 'dark'; // terminal background mode
 }
 
 /**

@@ -16,7 +16,7 @@ import {
   pullAsync,
   CreateWorktreeOpts,
 } from './git.js';
-import { load, save, addProject, rmProject, updateProject, setThemeCfg } from './store.js';
+import { load, save, addProject, rmProject, updateProject, setThemeCfg, setTerminalModeCfg } from './store.js';
 import { loadScanCache, saveScanCache, isCacheStale } from './cache.js';
 import { log, logError } from '../main/logger.js';
 
@@ -306,5 +306,21 @@ export class AppService {
    */
   getPersistedTheme(): string | undefined {
     return this.cfg.theme;
+  }
+
+  /**
+   * Set and persist terminal mode
+   */
+  setTerminalMode(mode: 'light' | 'dark'): void {
+    this.cfg = setTerminalModeCfg(this.cfg, mode);
+    save(this.cfg);
+    this.notify();
+  }
+
+  /**
+   * Get the persisted terminal mode
+   */
+  getPersistedTerminalMode(): 'light' | 'dark' | undefined {
+    return this.cfg.terminalMode;
   }
 }

@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   getTheme,
+  getColors,
   setTheme,
   toFg,
   themes,
@@ -14,15 +15,20 @@ import {
   commitPreview,
   cancelPreview,
   isPreviewing,
-  type AnsiColor,
+  setTerminalMode,
+  getTerminalMode,
+  detectTerminalMode,
+  autoDetectTerminalMode,
+  type ColorPalette,
   type Theme,
 } from './theme';
 
 describe('theme', () => {
   beforeEach(() => {
-    // Reset to default theme and cancel any previews before each test
+    // Reset to default theme, dark mode, and cancel any previews before each test
     cancelPreview();
     setTheme('default');
+    setTerminalMode('dark');
   });
 
   describe('getTheme', () => {
@@ -32,32 +38,50 @@ describe('theme', () => {
       expect(theme.name).toBe('solarized');
     });
 
-    it('returns theme with all required color properties', () => {
+    it('returns theme with light and dark palettes', () => {
       const theme = getTheme();
-      expect(theme.colors).toBeDefined();
-      expect(theme.colors.primary).toBeDefined();
-      expect(theme.colors.secondary).toBeDefined();
-      expect(theme.colors.muted).toBeDefined();
-      expect(theme.colors.success).toBeDefined();
-      expect(theme.colors.warning).toBeDefined();
-      expect(theme.colors.error).toBeDefined();
-      expect(theme.colors.info).toBeDefined();
-      expect(theme.colors.selection).toBeDefined();
-      expect(theme.colors.badge).toBeDefined();
-      expect(theme.colors.badgeMerged).toBeDefined();
-      expect(theme.colors.badgeLocked).toBeDefined();
-      expect(theme.colors.badgeMain).toBeDefined();
-      expect(theme.colors.actionKey).toBeDefined();
-      expect(theme.colors.actionLabel).toBeDefined();
-      expect(theme.colors.actionDisabled).toBeDefined();
-      expect(theme.colors.actionHighlight).toBeDefined();
+      expect(theme.light).toBeDefined();
+      expect(theme.dark).toBeDefined();
+    });
+  });
+
+  describe('getColors', () => {
+    it('returns dark palette by default', () => {
+      setTerminalMode('dark');
+      const colors = getColors();
+      expect(colors).toBe(getTheme().dark);
+    });
+
+    it('returns light palette when mode is light', () => {
+      setTerminalMode('light');
+      const colors = getColors();
+      expect(colors).toBe(getTheme().light);
+    });
+
+    it('returns palette with all required color properties', () => {
+      const colors = getColors();
+      expect(colors.text).toBeDefined();
+      expect(colors.textMuted).toBeDefined();
+      expect(colors.primary).toBeDefined();
+      expect(colors.secondary).toBeDefined();
+      expect(colors.success).toBeDefined();
+      expect(colors.warning).toBeDefined();
+      expect(colors.error).toBeDefined();
+      expect(colors.info).toBeDefined();
+      expect(colors.selection).toBeDefined();
+      expect(colors.badgeMerged).toBeDefined();
+      expect(colors.badgeLocked).toBeDefined();
+      expect(colors.badgeMain).toBeDefined();
+      expect(colors.actionKey).toBeDefined();
+      expect(colors.actionDisabled).toBeDefined();
+      expect(colors.actionHighlight).toBeDefined();
     });
   });
 
   describe('setTheme', () => {
     it('changes the current theme', () => {
-      setTheme('solarized');
-      expect(getTheme().name).toBe('solarized');
+      setTheme('dracula');
+      expect(getTheme().name).toBe('dracula');
     });
 
     it('ignores invalid theme names', () => {
@@ -78,37 +102,94 @@ describe('theme', () => {
     });
   });
 
+  describe('terminal mode', () => {
+    it('defaults to dark mode', () => {
+      expect(getTerminalMode()).toBe('dark');
+    });
+
+    it('setTerminalMode changes mode', () => {
+      setTerminalMode('light');
+      expect(getTerminalMode()).toBe('light');
+      setTerminalMode('dark');
+      expect(getTerminalMode()).toBe('dark');
+    });
+
+    it('getColors reflects terminal mode', () => {
+      setTerminalMode('dark');
+      expect(getColors()).toBe(getTheme().dark);
+      
+      setTerminalMode('light');
+      expect(getColors()).toBe(getTheme().light);
+    });
+  });
+
+  describe('detectTerminalMode', () => {
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+      process.env = { ...originalEnv };
+    });
+
+    afterEach(() => {
+      process.env = originalEnv;
+    });
+
+    it('returns dark by default', () => {
+      delete process.env.COLORFGBG;
+      delete process.env.APPLE_INTERFACE_STYLE;
+      delete process.env.ITERM_PROFILE;
+      delete process.env.BASE16_THEME;
+      delete process.env.TERMINAL_THEME;
+      expect(detectTerminalMode()).toBe('dark');
+    });
+
+    it('detects light from COLORFGBG with high bg value', () => {
+      process.env.COLORFGBG = '0;15';
+      expect(detectTerminalMode()).toBe('light');
+    });
+
+    it('detects dark from COLORFGBG with low bg value', () => {
+      process.env.COLORFGBG = '15;0';
+      expect(detectTerminalMode()).toBe('dark');
+    });
+
+    it('detects light from APPLE_INTERFACE_STYLE', () => {
+      process.env.APPLE_INTERFACE_STYLE = 'Light';
+      expect(detectTerminalMode()).toBe('light');
+    });
+
+    it('detects light from ITERM_PROFILE containing light', () => {
+      process.env.ITERM_PROFILE = 'Solarized Light';
+      expect(detectTerminalMode()).toBe('light');
+    });
+
+    it('detects light from BASE16_THEME containing light', () => {
+      process.env.BASE16_THEME = 'solarized-light';
+      expect(detectTerminalMode()).toBe('light');
+    });
+  });
+
+  describe('autoDetectTerminalMode', () => {
+    it('sets terminal mode based on detection', () => {
+      // Just verify it runs without error
+      autoDetectTerminalMode();
+      expect(['light', 'dark']).toContain(getTerminalMode());
+    });
+  });
+
   describe('toFg', () => {
     it('returns undefined for undefined input', () => {
       expect(toFg(undefined)).toBeUndefined();
     });
 
-    it('returns undefined for default color (uses terminal default)', () => {
-      expect(toFg('default')).toBeUndefined();
+    it('passes through hex colors', () => {
+      expect(toFg('#ff0000')).toBe('#ff0000');
+      expect(toFg('#2aa198')).toBe('#2aa198');
     });
 
-    it('maps base ANSI colors to themselves', () => {
-      const baseColors: AnsiColor[] = [
-        'black', 'red', 'green', 'yellow',
-        'blue', 'magenta', 'cyan', 'white',
-      ];
-      for (const color of baseColors) {
-        expect(toFg(color)).toBe(color);
-      }
-    });
-
-    it('maps brightBlack to gray', () => {
-      expect(toFg('brightBlack')).toBe('gray');
-    });
-
-    it('maps bright colors to base colors', () => {
-      expect(toFg('brightRed')).toBe('red');
-      expect(toFg('brightGreen')).toBe('green');
-      expect(toFg('brightYellow')).toBe('yellow');
-      expect(toFg('brightBlue')).toBe('blue');
-      expect(toFg('brightMagenta')).toBe('magenta');
-      expect(toFg('brightCyan')).toBe('cyan');
-      expect(toFg('brightWhite')).toBe('white');
+    it('passes through any string', () => {
+      expect(toFg('red')).toBe('red');
+      expect(toFg('cyan')).toBe('cyan');
     });
   });
 
@@ -219,14 +300,9 @@ describe('theme', () => {
     });
   });
 
-  describe('all themes', () => {
+  describe('all themes have valid hex colors', () => {
     const allThemes = [solarizedTheme, draculaTheme, nordTheme, monokaiTheme];
-    const validColors = new Set<AnsiColor>([
-      'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
-      'brightBlack', 'brightRed', 'brightGreen', 'brightYellow',
-      'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite',
-      'default',
-    ]);
+    const hexColorRegex = /^#[0-9a-fA-F]{6}$/;
 
     for (const theme of allThemes) {
       describe(theme.name, () => {
@@ -234,57 +310,84 @@ describe('theme', () => {
           expect(theme.name).toBe(theme.name);
         });
 
-        it('uses valid ANSI colors', () => {
-          const colors = Object.values(theme.colors);
+        it('dark palette uses valid hex colors', () => {
+          const colors = Object.values(theme.dark);
           for (const color of colors) {
-            expect(validColors.has(color)).toBe(true);
+            expect(color).toMatch(hexColorRegex);
           }
         });
 
-        it('has semantic color assignments', () => {
-          // All themes should use green for success, yellow for warning, red for error
-          expect(theme.colors.success).toBe('green');
-          expect(theme.colors.warning).toBe('yellow');
-          expect(theme.colors.error).toBe('red');
+        it('light palette uses valid hex colors', () => {
+          const colors = Object.values(theme.light);
+          for (const color of colors) {
+            expect(color).toMatch(hexColorRegex);
+          }
         });
 
-        it('has all required color properties', () => {
-          expect(theme.colors.primary).toBeDefined();
-          expect(theme.colors.secondary).toBeDefined();
-          expect(theme.colors.muted).toBeDefined();
-          expect(theme.colors.success).toBeDefined();
-          expect(theme.colors.warning).toBeDefined();
-          expect(theme.colors.error).toBeDefined();
-          expect(theme.colors.info).toBeDefined();
-          expect(theme.colors.selection).toBeDefined();
-          expect(theme.colors.badge).toBeDefined();
-          expect(theme.colors.badgeMerged).toBeDefined();
-          expect(theme.colors.badgeLocked).toBeDefined();
-          expect(theme.colors.badgeMain).toBeDefined();
-          expect(theme.colors.actionKey).toBeDefined();
-          expect(theme.colors.actionLabel).toBeDefined();
-          expect(theme.colors.actionDisabled).toBeDefined();
-          expect(theme.colors.actionHighlight).toBeDefined();
+        it('has all required color properties in dark palette', () => {
+          expect(theme.dark.text).toBeDefined();
+          expect(theme.dark.textMuted).toBeDefined();
+          expect(theme.dark.primary).toBeDefined();
+          expect(theme.dark.secondary).toBeDefined();
+          expect(theme.dark.success).toBeDefined();
+          expect(theme.dark.warning).toBeDefined();
+          expect(theme.dark.error).toBeDefined();
+          expect(theme.dark.info).toBeDefined();
+          expect(theme.dark.selection).toBeDefined();
+          expect(theme.dark.badgeMerged).toBeDefined();
+          expect(theme.dark.badgeLocked).toBeDefined();
+          expect(theme.dark.badgeMain).toBeDefined();
+          expect(theme.dark.actionKey).toBeDefined();
+          expect(theme.dark.actionDisabled).toBeDefined();
+          expect(theme.dark.actionHighlight).toBeDefined();
+        });
+
+        it('has all required color properties in light palette', () => {
+          expect(theme.light.text).toBeDefined();
+          expect(theme.light.textMuted).toBeDefined();
+          expect(theme.light.primary).toBeDefined();
+          expect(theme.light.secondary).toBeDefined();
+          expect(theme.light.success).toBeDefined();
+          expect(theme.light.warning).toBeDefined();
+          expect(theme.light.error).toBeDefined();
+          expect(theme.light.info).toBeDefined();
+          expect(theme.light.selection).toBeDefined();
+          expect(theme.light.badgeMerged).toBeDefined();
+          expect(theme.light.badgeLocked).toBeDefined();
+          expect(theme.light.badgeMain).toBeDefined();
+          expect(theme.light.actionKey).toBeDefined();
+          expect(theme.light.actionDisabled).toBeDefined();
+          expect(theme.light.actionHighlight).toBeDefined();
         });
       });
     }
   });
 
   describe('theme distinctiveness', () => {
-    it('dracula has magenta as primary', () => {
-      expect(draculaTheme.colors.primary).toBe('magenta');
+    it('dracula has purple as primary', () => {
+      expect(draculaTheme.dark.primary).toBe('#bd93f9');
     });
 
     it('nord has blue as primary', () => {
-      expect(nordTheme.colors.primary).toBe('blue');
+      expect(nordTheme.dark.primary).toBe('#81a1c1');
     });
 
     it('monokai has yellow as primary', () => {
-      expect(monokaiTheme.colors.primary).toBe('yellow');
+      expect(monokaiTheme.dark.primary).toBe('#e6db74');
     });
 
     it('solarized has cyan as primary', () => {
-      expect(solarizedTheme.colors.primary).toBe('cyan');
+      expect(solarizedTheme.dark.primary).toBe('#2aa198');
     });
+  });
+
+  describe('light vs dark contrast', () => {
+    const allThemes = [solarizedTheme, draculaTheme, nordTheme, monokaiTheme];
+
+    for (const theme of allThemes) {
+      it(`${theme.name} has different text colors for light and dark`, () => {
+        expect(theme.light.text).not.toBe(theme.dark.text);
+      });
+    }
   });
 });

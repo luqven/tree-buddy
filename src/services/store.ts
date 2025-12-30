@@ -117,3 +117,10 @@ export function hasProject(cfg: Config, path: string): boolean {
 export function setThemeCfg(cfg: Config, theme: string): Config {
   return { ...cfg, theme };
 }
+
+/**
+ * Set terminal mode in config
+ */
+export function setTerminalModeCfg(cfg: Config, mode: 'light' | 'dark'): Config {
+  return { ...cfg, terminalMode: mode };
+}

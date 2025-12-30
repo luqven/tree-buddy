@@ -4,17 +4,21 @@ import { AppService, AppState } from '../services/AppService';
 import { Project, Branch, WorktreeCandidate } from '../core/types';
 import { join, dirname, basename } from 'path';
 import { 
-  getTheme, 
+  getTheme,
+  getColors,
   toFg, 
-  setTheme, 
+  setTheme,
+  setTerminalMode,
+  getTerminalMode,
+  autoDetectTerminalMode,
   getThemeNames, 
   previewTheme, 
   commitPreview, 
   cancelPreview 
 } from './theme';
 
-// Get theme colors helper
-const t = () => getTheme().colors;
+// Get theme colors helper - returns the palette for current terminal mode
+const c = () => getColors();
 
 type Mode = 'normal' | 'help' | 'confirm-delete' | 'add-project' | 'create-worktree' | 'select-branch' | 'command-palette' | 'select-theme';
 
@@ -122,11 +126,21 @@ export function App({ service }: { service: AppService }) {
   const [themeIndex, setThemeIndex] = useState(0);
   const themeNames = useMemo(() => getThemeNames(), []);
   
-  // Load persisted theme on mount
+  // Load persisted theme and detect terminal mode on mount
   useEffect(() => {
+    // Auto-detect terminal color scheme
+    autoDetectTerminalMode();
+    
+    // Load persisted theme
     const persisted = service.getPersistedTheme();
     if (persisted) {
       setTheme(persisted);
+    }
+    
+    // Load persisted terminal mode (overrides auto-detect if set)
+    const persistedMode = service.getPersistedTerminalMode();
+    if (persistedMode) {
+      setTerminalMode(persistedMode);
     }
   }, [service]);
 
@@ -322,6 +336,12 @@ export function App({ service }: { service: AppService }) {
         const idx = themeNames.indexOf(currentThemeName);
         setThemeIndex(idx >= 0 ? idx : 0);
         setMode('select-theme');
+      }},
+      { id: 'toggle-mode', title: `Switch to ${getTerminalMode() === 'dark' ? 'light' : 'dark'} mode`, category: 'Settings', enabled: true, onSelect: () => {
+        const newMode = getTerminalMode() === 'dark' ? 'light' : 'dark';
+        setTerminalMode(newMode);
+        service.setTerminalMode(newMode);
+        showStatus(`Terminal mode: ${newMode}`);
       }},
       { id: 'help', title: 'Show help', key: '?', category: 'Settings', enabled: true, onSelect: () => setMode('help') },
     ];
@@ -705,7 +725,8 @@ export function App({ service }: { service: AppService }) {
 
   // Render help overlay
   if (mode === 'help') {
-    const theme = t();
+    const theme = c();
+    const text = toFg(theme.text);
     const primary = toFg(theme.primary);
     const highlight = toFg(theme.actionHighlight);
     return (
@@ -713,29 +734,29 @@ export function App({ service }: { service: AppService }) {
         <box border title="Help - Press ? or q to close" flexGrow={1}>
           <box flexDirection="column" style={{ padding: 1 }}>
             <text bold fg={primary}>Navigation</text>
-            <text>  <span fg={highlight}>↑/k</span>  Move up</text>
-            <text>  <span fg={highlight}>↓/j</span>  Move down</text>
-            <text>  <span fg={highlight}>q</span>    Quit</text>
-            <text>  <span fg={highlight}>/</span>    Command palette</text>
-            <text> </text>
+            <text fg={text}>  <span fg={highlight}>↑/k</span>  Move up</text>
+            <text fg={text}>  <span fg={highlight}>↓/j</span>  Move down</text>
+            <text fg={text}>  <span fg={highlight}>q</span>    Quit</text>
+            <text fg={text}>  <span fg={highlight}>/</span>    Command palette</text>
+            <text fg={text}> </text>
             <text bold fg={primary}>Actions</text>
-            <text>  <span fg={highlight}>o</span>    Open in Finder</text>
-            <text>  <span fg={highlight}>t</span>    Open in Terminal</text>
-            <text>  <span fg={highlight}>r</span>    Refresh all</text>
-            <text> </text>
+            <text fg={text}>  <span fg={highlight}>o</span>    Open in Finder</text>
+            <text fg={text}>  <span fg={highlight}>t</span>    Open in Terminal</text>
+            <text fg={text}>  <span fg={highlight}>r</span>    Refresh all</text>
+            <text fg={text}> </text>
             <text bold fg={primary}>Worktree Management</text>
-            <text>  <span fg={highlight}>n</span>    Create new worktree</text>
-            <text>  <span fg={highlight}>d</span>    Delete worktree</text>
-            <text>  <span fg={highlight}>D</span>    Delete all merged worktrees</text>
-            <text>  <span fg={highlight}>l</span>    Toggle lock</text>
-            <text> </text>
+            <text fg={text}>  <span fg={highlight}>n</span>    Create new worktree</text>
+            <text fg={text}>  <span fg={highlight}>d</span>    Delete worktree</text>
+            <text fg={text}>  <span fg={highlight}>D</span>    Delete all merged worktrees</text>
+            <text fg={text}>  <span fg={highlight}>l</span>    Toggle lock</text>
+            <text fg={text}> </text>
             <text bold fg={primary}>Git Operations</text>
-            <text>  <span fg={highlight}>f</span>    Fetch</text>
-            <text>  <span fg={highlight}>p</span>    Pull</text>
-            <text> </text>
+            <text fg={text}>  <span fg={highlight}>f</span>    Fetch</text>
+            <text fg={text}>  <span fg={highlight}>p</span>    Pull</text>
+            <text fg={text}> </text>
             <text bold fg={primary}>Projects</text>
-            <text>  <span fg={highlight}>a</span>    Add project</text>
-            <text>  <span fg={highlight}>x</span>    Remove project</text>
+            <text fg={text}>  <span fg={highlight}>a</span>    Add project</text>
+            <text fg={text}>  <span fg={highlight}>x</span>    Remove project</text>
           </box>
         </box>
       </box>
@@ -744,10 +765,11 @@ export function App({ service }: { service: AppService }) {
 
   // Render command palette
   if (mode === 'command-palette') {
-    const theme = t();
+    const theme = c();
+    const text = toFg(theme.text);
     const primary = toFg(theme.primary);
     const selection = toFg(theme.selection);
-    const muted = toFg(theme.muted);
+    const muted = toFg(theme.textMuted);
     
     // Calculate flat index for highlighting
     let flatIdx = 0;
@@ -757,17 +779,17 @@ export function App({ service }: { service: AppService }) {
         <box border title="Commands - Type to filter, Esc to close" flexGrow={1}>
           <box flexDirection="column" style={{ padding: 1 }}>
             {/* Filter input */}
-            <text>
+            <text fg={text}>
               <span fg={primary}>&gt; </span>
-              <span>{paletteFilter}</span>
-              <span dim>_</span>
+              <span fg={text}>{paletteFilter}</span>
+              <span fg={muted}>_</span>
             </text>
-            <text> </text>
+            <text fg={text}> </text>
             
             {/* Grouped commands */}
             <scrollbox flexGrow={1} focused>
               {groupedCommands.length === 0 ? (
-                <text dim>No matching commands</text>
+                <text fg={muted}>No matching commands</text>
               ) : (
                 groupedCommands.map(group => {
                   const groupStartIdx = flatIdx;
@@ -780,11 +802,11 @@ export function App({ service }: { service: AppService }) {
                         flatIdx++;
                         return (
                           <box key={cmd.id} style={{ paddingLeft: 2 }}>
-                            <text>
-                              <span fg={isSelected ? selection : undefined}>
+                            <text fg={text}>
+                              <span fg={isSelected ? selection : text}>
                                 {isSelected ? '> ' : '  '}{cmd.title}
                               </span>
-                              {cmd.key && <span dim>  {cmd.key}</span>}
+                              {cmd.key && <span fg={muted}>  {cmd.key}</span>}
                             </text>
                           </box>
                         );
@@ -802,9 +824,11 @@ export function App({ service }: { service: AppService }) {
 
   // Render theme selector
   if (mode === 'select-theme') {
-    const theme = t();
+    const theme = c();
+    const text = toFg(theme.text);
     const primary = toFg(theme.primary);
     const selection = toFg(theme.selection);
+    const muted = toFg(theme.textMuted);
     
     return (
       <box flexDirection="column" style={{ width, height, padding: 1 }}>
@@ -815,15 +839,15 @@ export function App({ service }: { service: AppService }) {
                 const isSelected = i === themeIndex;
                 return (
                   <box key={name} style={{ paddingLeft: 1 }}>
-                    <text fg={isSelected ? selection : undefined}>
+                    <text fg={isSelected ? selection : text}>
                       {isSelected ? '> ' : '  '}{name}
                     </text>
                   </box>
                 );
               })}
             </scrollbox>
-            <text> </text>
-            <text dim>Current: {getTheme().name}</text>
+            <text fg={text}> </text>
+            <text fg={muted}>Current: {getTheme().name}</text>
           </box>
         </box>
       </box>
@@ -832,20 +856,22 @@ export function App({ service }: { service: AppService }) {
 
   // Render add-project overlay
   if (mode === 'add-project') {
-    const theme = t();
+    const theme = c();
+    const text = toFg(theme.text);
     const selection = toFg(theme.selection);
+    const muted = toFg(theme.textMuted);
     return (
       <box flexDirection="column" style={{ width, height, padding: 1 }}>
         <box border title="Add Project - ↑/↓ select, Enter add, Esc cancel" flexGrow={1}>
           <scrollbox flexGrow={1} focused>
             {candidates.length === 0 ? (
-              <text dim>No new projects found</text>
+              <text fg={muted}>No new projects found</text>
             ) : (
-              candidates.map((c, i) => (
-                <box key={c.path} style={{ paddingLeft: 1 }}>
-                  <text>
-                    <span fg={i === candidateIdx ? selection : undefined}>{i === candidateIdx ? '> ' : '  '}{c.name}</span>
-                    <span dim> ({c.branchCount} branches)</span>
+              candidates.map((cand, i) => (
+                <box key={cand.path} style={{ paddingLeft: 1 }}>
+                  <text fg={text}>
+                    <span fg={i === candidateIdx ? selection : text}>{i === candidateIdx ? '> ' : '  '}{cand.name}</span>
+                    <span fg={muted}> ({cand.branchCount} branches)</span>
                   </text>
                 </box>
               ))
@@ -858,10 +884,12 @@ export function App({ service }: { service: AppService }) {
 
   // Render create-worktree overlay
   if (mode === 'create-worktree' && createState) {
-    const theme = t();
+    const theme = c();
+    const text = toFg(theme.text);
     const primary = toFg(theme.primary);
     const highlight = toFg(theme.actionHighlight);
     const selection = toFg(theme.selection);
+    const muted = toFg(theme.textMuted);
     return (
       <box flexDirection="column" style={{ width, height, padding: 1 }}>
         <box border title="Create Worktree - Esc cancel" flexGrow={1}>
@@ -869,25 +897,25 @@ export function App({ service }: { service: AppService }) {
             {createState.step === 'name' ? (
               <>
                 <text fg={primary}>Enter new branch name:</text>
-                <text> </text>
-                <text>
-                  <span>&gt; </span>
+                <text fg={text}> </text>
+                <text fg={text}>
+                  <span fg={text}>&gt; </span>
                   <span fg={highlight}>{inputValue}</span>
-                  <span>_</span>
+                  <span fg={muted}>_</span>
                 </text>
               </>
             ) : (
               <>
                 <text fg={primary}>Select base branch for: <span fg={highlight}>{createState.branchName}</span></text>
-                <text dim>(Press Enter on HEAD to create from current)</text>
-                <text> </text>
+                <text fg={muted}>(Press Enter on HEAD to create from current)</text>
+                <text fg={text}> </text>
                 <scrollbox flexGrow={1} focused>
                   <box style={{ paddingLeft: 1 }}>
-                    <text fg={createState.selectedIdx === 0 ? selection : undefined}>{createState.selectedIdx === 0 ? '> ' : '  '}[HEAD - current]</text>
+                    <text fg={createState.selectedIdx === 0 ? selection : text}>{createState.selectedIdx === 0 ? '> ' : '  '}[HEAD - current]</text>
                   </box>
                   {createState.branches.map((br, i) => (
                     <box key={br} style={{ paddingLeft: 1 }}>
-                      <text fg={i + 1 === createState.selectedIdx ? selection : undefined}>{i + 1 === createState.selectedIdx ? '> ' : '  '}{br}</text>
+                      <text fg={i + 1 === createState.selectedIdx ? selection : text}>{i + 1 === createState.selectedIdx ? '> ' : '  '}{br}</text>
                     </box>
                   ))}
                 </scrollbox>
@@ -905,7 +933,7 @@ export function App({ service }: { service: AppService }) {
       <box flexDirection="column" style={{ width, height, padding: 1 }}>
         <box flexGrow={1} />
         <box border style={{ padding: 1 }}>
-          <text fg={toFg(t().warning)}>{confirm.msg}</text>
+          <text fg={toFg(c().warning)}>{confirm.msg}</text>
         </box>
         <box flexGrow={1} />
       </box>
@@ -916,38 +944,38 @@ export function App({ service }: { service: AppService }) {
   return (
     <box flexDirection="column" style={{ width, height, padding: 1 }}>
       <box style={{ marginBottom: 1 }}>
-        <text>
-          <span fg={toFg(t().primary)} bold>Tree Buddy</span>
-          <span dim> | / commands | ? help | q quit</span>
+        <text fg={toFg(c().text)}>
+          <span fg={toFg(c().primary)} bold>Tree Buddy</span>
+          <span fg={toFg(c().textMuted)}> | / commands | ? help | q quit</span>
         </text>
       </box>
 
       <scrollbox flexGrow={1} border title="Projects" focused>
         {allItems.length === 0 ? (
           <box style={{ padding: 1 }}>
-            <text dim>No projects. Press 'a' to add one.</text>
+            <text fg={toFg(c().textMuted)}>No projects. Press 'a' to add one.</text>
           </box>
         ) : (
           allItems.map((item, i) => {
             const isSelected = i === selectedIndex;
             const marker = isSelected ? '>' : ' ';
-            const theme = t();
+            const theme = c();
             if (item.type === 'project') {
               const p = item.data as Project;
               return (
                 <box key={p.id} style={{ paddingLeft: 1 }}>
                   <text bold fg={toFg(isSelected ? theme.selection : theme.warning)}>{marker} {p.name}</text>
-                  <text dim> ({p.branches.length})</text>
+                  <text fg={toFg(c().textMuted)}> ({p.branches.length})</text>
                 </box>
               );
             } else {
               const br = item.data as Branch;
               return (
                 <box key={`${item.project.id}-${br.name}`} style={{ paddingLeft: 3 }}>
-                  <text>
-                    <span fg={toFg(isSelected ? theme.selection : undefined)}>{marker} </span>
+                  <text fg={toFg(theme.text)}>
+                    <span fg={toFg(isSelected ? theme.selection : theme.text)}>{marker} </span>
                     <BranchStatusIndicator branch={br} />
-                    <span fg={toFg(isSelected ? theme.selection : undefined)} bold={isSelected}>{br.name}</span>
+                    <span fg={toFg(isSelected ? theme.selection : theme.text)} bold={isSelected}>{br.name}</span>
                     <BranchBadges branch={br} />
                   </text>
                 </box>
@@ -978,7 +1006,7 @@ export function App({ service }: { service: AppService }) {
 }
 
 function BranchStatusIndicator({ branch }: { branch: Branch }) {
-  const theme = t();
+  const theme = c();
   if (branch.status.behind > 0) {
     return <span fg={toFg(theme.error)}>● </span>;
   }
@@ -989,7 +1017,7 @@ function BranchStatusIndicator({ branch }: { branch: Branch }) {
 }
 
 function BranchBadges({ branch }: { branch: Branch }) {
-  const theme = t();
+  const theme = c();
   const badges: React.ReactNode[] = [];
   
   if (branch.locked) {
@@ -1023,26 +1051,26 @@ function BranchDetails({ branch }: { branch: Branch }) {
   const status = parts.length > 0 ? parts.join(' | ') : 'clean';
   
   return (
-    <text dim>
+    <text fg={toFg(c().textMuted)}>
       {branch.name}: {status}
     </text>
   );
 }
 
 function ActionBar({ actions }: { actions: ActionHint[] }) {
-  const theme = t();
+  const theme = c();
   return (
-    <text>
+    <text fg={toFg(theme.text)}>
       {actions.map((action, i) => {
         const isDim = !action.enabled;
         const isHighlight = action.enabled && action.highlight;
         const keyColor = isDim ? toFg(theme.actionDisabled) : isHighlight ? toFg(theme.actionHighlight) : toFg(theme.actionKey);
-        const labelColor = isDim ? toFg(theme.actionDisabled) : isHighlight ? toFg(theme.actionHighlight) : undefined;
+        const labelColor = isDim ? toFg(theme.actionDisabled) : isHighlight ? toFg(theme.actionHighlight) : toFg(theme.text);
         return (
-          <span key={action.key}>
-            {i > 0 && <span>  </span>}
-            <span dim={isDim} fg={keyColor}>[{action.key}]</span>
-            <span dim={isDim} fg={labelColor}> {action.label}</span>
+          <span key={action.key} fg={toFg(theme.text)}>
+            {i > 0 && <span fg={toFg(theme.text)}>  </span>}
+            <span fg={keyColor}>[{action.key}]</span>
+            <span fg={labelColor}> {action.label}</span>
           </span>
         );
       })}
@@ -1059,7 +1087,7 @@ function StatusLine({
   status: string; 
   selectedItem: SelectedItem;
 }) {
-  const theme = t();
+  const theme = c();
   if (isRefreshing) {
     return <text fg={toFg(theme.info)}>Refreshing...</text>;
   }
@@ -1074,8 +1102,8 @@ function StatusLine({
   
   if (selectedItem?.type === 'project') {
     const proj = selectedItem.data as Project;
-    return <text dim>{proj.root}</text>;
+    return <text fg={toFg(theme.textMuted)}>{proj.root}</text>;
   }
   
-  return <text dim>No selection</text>;
+  return <text fg={toFg(theme.textMuted)}>No selection</text>;
 }
