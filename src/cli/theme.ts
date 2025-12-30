@@ -369,9 +369,107 @@ export function isPreviewing(): boolean {
 }
 
 /**
+ * Check if terminal supports true color (24-bit RGB)
+ */
+export function supportsTrueColor(): boolean {
+  const colorterm = process.env.COLORTERM;
+  if (colorterm === 'truecolor' || colorterm === '24bit') {
+    return true;
+  }
+  
+  const term = process.env.TERM;
+  if (term?.includes('truecolor') || term?.includes('24bit') || term?.includes('direct')) {
+    return true;
+  }
+  
+  // Some terminals that support true color
+  const termProgram = process.env.TERM_PROGRAM;
+  if (termProgram === 'iTerm.app' || termProgram === 'ghostty' || termProgram === 'vscode') {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Map hex colors to closest standard ANSI 16 color names
+ * These work in all terminals including macOS Terminal
+ */
+const hexToAnsiName: Record<string, string> = {};
+
+/**
+ * Standard ANSI 16 colors with their approximate RGB values
+ */
+const ansi16Colors: Array<{ name: string; r: number; g: number; b: number }> = [
+  { name: 'black', r: 0, g: 0, b: 0 },
+  { name: 'red', r: 205, g: 49, b: 49 },
+  { name: 'green', r: 13, g: 188, b: 121 },
+  { name: 'yellow', r: 229, g: 229, b: 16 },
+  { name: 'blue', r: 36, g: 114, b: 200 },
+  { name: 'magenta', r: 188, g: 63, b: 188 },
+  { name: 'cyan', r: 17, g: 168, b: 205 },
+  { name: 'white', r: 229, g: 229, b: 229 },
+  // Bright variants
+  { name: 'gray', r: 102, g: 102, b: 102 },
+  { name: 'brightRed', r: 241, g: 76, b: 76 },
+  { name: 'brightGreen', r: 35, g: 209, b: 139 },
+  { name: 'brightYellow', r: 245, g: 245, b: 67 },
+  { name: 'brightBlue', r: 59, g: 142, b: 234 },
+  { name: 'brightMagenta', r: 214, g: 112, b: 214 },
+  { name: 'brightCyan', r: 41, g: 184, b: 219 },
+  { name: 'brightWhite', r: 255, g: 255, b: 255 },
+];
+
+/**
+ * Find the closest ANSI 16 color name for a hex color
+ */
+function hexToClosestAnsi(hex: string): string {
+  // Check cache first
+  if (hexToAnsiName[hex]) {
+    return hexToAnsiName[hex];
+  }
+  
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  
+  let closest = 'white';
+  let minDist = Infinity;
+  
+  for (const c of ansi16Colors) {
+    // Euclidean distance in RGB space
+    const dist = Math.sqrt(
+      Math.pow(r - c.r, 2) +
+      Math.pow(g - c.g, 2) +
+      Math.pow(b - c.b, 2)
+    );
+    if (dist < minDist) {
+      minDist = dist;
+      closest = c.name;
+    }
+  }
+  
+  hexToAnsiName[hex] = closest;
+  return closest;
+}
+
+/**
  * Convert color to fg prop value
- * With hex colors, we pass them through directly
+ * Uses hex for true color terminals, ANSI names for others
  */
 export function toFg(color: string | undefined): string | undefined {
+  if (!color) return undefined;
+  
+  // If it's a hex color, convert based on terminal capability
+  if (color.startsWith('#')) {
+    if (supportsTrueColor()) {
+      // True color: pass hex directly
+      return color;
+    } else {
+      // Non-true-color: use closest ANSI 16 color name
+      return hexToClosestAnsi(color);
+    }
+  }
+  
   return color;
 }

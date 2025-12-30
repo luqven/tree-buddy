@@ -4,6 +4,7 @@ import {
   getColors,
   setTheme,
   toFg,
+  supportsTrueColor,
   themes,
   solarizedTheme,
   draculaTheme,
@@ -178,16 +179,42 @@ describe('theme', () => {
   });
 
   describe('toFg', () => {
+    const originalEnv = process.env;
+
+    beforeEach(() => {
+      process.env = { ...originalEnv };
+    });
+
+    afterEach(() => {
+      process.env = originalEnv;
+    });
+
     it('returns undefined for undefined input', () => {
       expect(toFg(undefined)).toBeUndefined();
     });
 
-    it('passes through hex colors', () => {
+    it('passes through hex colors in true color terminals', () => {
+      process.env.COLORTERM = 'truecolor';
       expect(toFg('#ff0000')).toBe('#ff0000');
       expect(toFg('#2aa198')).toBe('#2aa198');
     });
 
-    it('passes through any string', () => {
+    it('converts hex to ANSI names in non-true-color terminals', () => {
+      delete process.env.COLORTERM;
+      delete process.env.TERM_PROGRAM;
+      process.env.TERM = 'xterm-256color';
+      
+      // Pure red should map to red
+      expect(toFg('#ff0000')).toBe('red');
+      // Solarized cyan (#2aa198) is closest to brightGreen in ANSI 16
+      expect(toFg('#2aa198')).toBe('brightGreen');
+      // Dark gray should map to gray
+      expect(toFg('#666666')).toBe('gray');
+      // Pure cyan should map to cyan
+      expect(toFg('#00ffff')).toBe('brightCyan');
+    });
+
+    it('passes through ANSI color names', () => {
       expect(toFg('red')).toBe('red');
       expect(toFg('cyan')).toBe('cyan');
     });
