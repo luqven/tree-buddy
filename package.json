@@ -10,7 +10,7 @@
     "build:renderer": "vite build",
     "dev:renderer": "vite",
     "cli": "tsx src/cli/index.tsx",
-    "cli:bun": "bun src/cli/index.tsx",
+    "cli:bun": "exec bun src/cli/index.tsx",
     "start": "npm run build && electron .",
     "test": "vitest --root . run",
     "test:watch": "vitest --root . watch"

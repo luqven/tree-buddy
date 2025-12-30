@@ -10,6 +10,7 @@ The terminal UI built with OpenTUI and React.
 |-----|--------|
 | `j` / `↓` | Move down |
 | `k` / `↑` | Move up |
+| `Enter` | cd into selected worktree |
 | `q` | Quit |
 | `/` | Command palette |
 | `?` | Help |
@@ -56,3 +57,14 @@ Each theme supports both light and dark terminal backgrounds.
 The CLI auto-detects your terminal color scheme using environment variables (`COLORTERM`, `COLORFGBG`, `TERM_PROGRAM`).
 
 If colors appear incorrect, press `/` and select "Switch to light mode" or "Switch to dark mode". The setting is persisted to your config.
+
+## Quick Access
+
+Add a shell alias for quick access:
+
+```bash
+# Add to ~/.zshrc or ~/.bashrc
+alias tb="bun ~/path/to/tree-buddy/src/cli/index.tsx"
+```
+
+Then run `tb` from anywhere to launch the CLI.
