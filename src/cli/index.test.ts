@@ -81,12 +81,11 @@ describe('CLI index', () => {
   describe('cd and quit (Enter key)', () => {
     it('writes path to temp file for shell function to read', () => {
       const fs = require('fs');
-      const os = require('os');
-      const path = require('path');
       
       const mockWriteFileSync = vi.spyOn(fs, 'writeFileSync').mockImplementation(() => {});
       const worktreePath = '/test/worktree';
-      const expectedFile = path.join(os.tmpdir(), 'tree-buddy-cd-path');
+      // Use /tmp directly (not tmpdir() which resolves to /var/folders/... on macOS)
+      const expectedFile = '/tmp/tree-buddy-cd-path';
       
       // Simulate onCdQuit behavior
       fs.writeFileSync(expectedFile, worktreePath);

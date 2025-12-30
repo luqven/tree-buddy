@@ -8,6 +8,15 @@ import { App } from "./App";
 import { AppService } from "../services/AppService";
 import { createCliAdapter } from "./CliAdapter";
 
+// VERSION is injected at build time via --define, fallback to 'dev' for development
+declare const VERSION: string | undefined;
+
+// Handle --version flag before starting the app
+if (process.argv.includes('--version') || process.argv.includes('-v')) {
+  console.log(`tb ${typeof VERSION !== 'undefined' ? VERSION : 'dev'}`);
+  process.exit(0);
+}
+
 // Use /tmp directly for compatibility with shell function (not tmpdir() which resolves to /var/folders/... on macOS)
 const CD_PATH_FILE = '/tmp/tree-buddy-cd-path';
 
