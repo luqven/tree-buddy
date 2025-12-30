@@ -1,86 +1,102 @@
 # Tree Buddy
 
-macOS menubar app for managing git worktrees.
+Git worktree manager for macOS — available as a menubar app or CLI.
 
 ## Features
 
 - **Project discovery** - Scans `~/Documents` for worktree projects
 - **Branch scoping** - Groups branches by path segments (e.g., `l/ENG-123/feat` → `l` → `ENG-123` → `feat`)
-- **Status indicators** - Stoplight colors: green (clean), yellow (uncommitted), red (behind upstream)
-- **Branch protection** - Lock branches to prevent accidental cleanup/deletion
+- **Status indicators** - Green (clean), yellow (uncommitted), red (behind upstream)
+- **Branch protection** - Lock branches to prevent accidental deletion
 - **Background refresh** - Auto-updates every 5 minutes
 - **Cached startup** - Shows cached data instantly, refreshes in background
 
-## Architecture
+## CLI
 
-```
-src/
-├── core/
-│   └── types.ts          # Domain models: Project, Branch, GitStatus, ScopeNode
-├── services/
-│   ├── git.ts            # Git operations (sync + async versions)
-│   ├── scope.ts          # Branch name parsing and tree building
-│   ├── store.ts          # Config persistence (~/.config/tree-buddy/)
-│   └── cache.ts          # Scan cache (~/.cache/tree-buddy/)
-├── ui/
-│   ├── menu.ts           # Native menu builder
-│   └── icons.ts          # Programmatic status icon generation
-├── main/
-│   └── index.ts          # Electron app entry point
-└── index.ts              # Public API exports
+Run the terminal UI:
+
+```bash
+npm run cli:bun
 ```
 
-### Data Flow
+### Keybindings
 
+| Key | Action |
+|-----|--------|
+| `j` / `↓` | Move down |
+| `k` / `↑` | Move up |
+| `q` | Quit |
+| `/` | Command palette |
+| `?` | Help |
+
+#### Worktree
+
+| Key | Action |
+|-----|--------|
+| `n` | Create new worktree |
+| `d` | Delete worktree |
+| `D` | Delete all merged |
+| `l` | Toggle lock |
+
+#### Git
+
+| Key | Action |
+|-----|--------|
+| `f` | Fetch |
+| `p` | Pull |
+| `r` | Refresh all |
+
+#### Projects
+
+| Key | Action |
+|-----|--------|
+| `a` | Add project |
+| `x` | Remove project |
+| `o` | Open in Finder |
+| `t` | Open in Terminal |
+
+### Themes
+
+Press `/` then select "Change theme..." to switch between:
+- solarized (default)
+- dracula
+- nord
+- monokai
+
+### Light/Dark Mode
+
+The CLI auto-detects your terminal color scheme. If colors look wrong, press `/` and select "Switch to light/dark mode".
+
+## GUI
+
+Run the Electron menubar app:
+
+```bash
+npm start
 ```
-[Startup]
-    │
-    ├─► Load config from disk
-    ├─► Show cached menu immediately
-    └─► Async refresh all statuses
-            │
-            └─► Update menu when done
-
-[Background]
-    │
-    └─► setInterval(5min) ─► Refresh all statuses ─► Update menu
-
-[Add Project]
-    │
-    ├─► Load scan cache (or scan if stale)
-    ├─► Show discovery dialog
-    └─► Add to config ─► Refresh statuses
-```
-
-### Key Types
-
-| Type | Purpose |
-|------|---------|
-| `Project` | Worktree root with name, path, branches |
-| `Branch` | Single worktree with name, path, status |
-| `GitStatus` | ahead/behind counts, dirty flag, timestamp |
-| `ScopeNode` | Tree node for nested branch display |
-| `SyncStatus` | `'green'` \| `'yellow'` \| `'red'` |
-
-### Storage
-
-| Path | Contents |
-|------|----------|
-| `~/.config/tree-buddy/config.json` | Projects, scope settings |
-| `~/.cache/tree-buddy/scan.json` | Cached worktree discovery results |
 
 ## Development
 
 ```bash
 npm install
 npm run build    # Compile TypeScript
-npm start        # Build + run app
 npm test         # Run tests
 ```
 
-## Tech Stack
+## Architecture
 
-- **Electron** - Desktop app framework
-- **TypeScript** - Type safety
-- **Vitest** - Unit testing
-- **menubar** - Tray integration (dependency)
+```
+src/
+├── cli/              # Terminal UI (OpenTUI/React)
+├── core/             # Domain types
+├── services/         # Git, store, cache
+├── main/             # Electron entry
+└── renderer/         # GUI components
+```
+
+### Storage
+
+| Path | Contents |
+|------|----------|
+| `~/.config/tree-buddy/config.json` | Projects, theme, settings |
+| `~/.cache/tree-buddy/scan.json` | Cached discovery results |
