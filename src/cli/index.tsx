@@ -2,9 +2,14 @@ import React from 'react';
 import { createCliRenderer, CliRenderer } from "@opentui/core";
 import { createRoot, Root } from "@opentui/react";
 import { spawn } from "child_process";
+import { writeFileSync, unlinkSync, existsSync } from "fs";
+import { tmpdir } from "os";
+import { join } from "path";
 import { App } from "./App";
 import { AppService } from "../services/AppService";
 import { createCliAdapter } from "./CliAdapter";
+
+const CD_PATH_FILE = join(tmpdir(), 'tree-buddy-cd-path');
 
 let renderer: CliRenderer | null = null;
 let root: Root | null = null;
@@ -26,6 +31,11 @@ function cleanup() {
   process.stdout.write('\x1b[?1049l\x1b[?25h');
 }
 
+// Clean up any stale cd path file on startup
+if (existsSync(CD_PATH_FILE)) {
+  try { unlinkSync(CD_PATH_FILE); } catch {}
+}
+
 async function main() {
   renderer = await createCliRenderer({
     exitOnCtrlC: false, // We'll handle it ourselves
@@ -38,8 +48,8 @@ async function main() {
     },
     onCdQuit: (path: string) => {
       cleanup();
-      // Output path for shell alias to capture: alias tb='cd "$(tree-buddy)"'
-      console.log(path);
+      // Write path to temp file for shell function to read
+      writeFileSync(CD_PATH_FILE, path);
       process.exit(0);
     },
     onSubshell: (path: string) => {

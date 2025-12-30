@@ -4,20 +4,30 @@ The terminal UI built with OpenTUI and React.
 
 ## Installation
 
-### Setup Shell Alias
+### Setup Shell Function
 
-For the `Enter` key to cd into worktrees, add this alias to your shell config:
+For the `Enter` key to cd into worktrees, add this function to your shell config:
 
 ```bash
 # Add to ~/.zshrc or ~/.bashrc
-alias tb='cd "$(bun ~/path/to/tree-buddy/src/cli/index.tsx)"'
+tb() {
+  bun ~/path/to/tree-buddy/src/cli/index.tsx
+  local cd_file="/tmp/tree-buddy-cd-path"
+  if [[ -f "$cd_file" ]]; then
+    local target=$(cat "$cd_file")
+    rm -f "$cd_file"
+    if [[ -d "$target" ]]; then
+      cd "$target"
+    fi
+  fi
+}
 ```
 
 Then run `tb` from anywhere to launch the CLI. Press `Enter` on a worktree to cd into it.
 
 **Alternative: Subshell mode**
 
-If you don't want to set up the alias, press `s` instead of `Enter` to open a subshell in the selected worktree. Type `exit` to return.
+If you don't want to set up the shell function, press `s` instead of `Enter` to open a subshell in the selected worktree. Type `exit` to return.
 
 ## Keybindings
 

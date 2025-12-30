@@ -79,15 +79,20 @@ describe('CLI index', () => {
   });
 
   describe('cd and quit (Enter key)', () => {
-    it('outputs path to stdout for shell alias to capture', () => {
-      const mockLog = vi.spyOn(console, 'log').mockImplementation(() => {});
-      const path = '/test/worktree';
+    it('writes path to temp file for shell function to read', () => {
+      const fs = require('fs');
+      const os = require('os');
+      const path = require('path');
+      
+      const mockWriteFileSync = vi.spyOn(fs, 'writeFileSync').mockImplementation(() => {});
+      const worktreePath = '/test/worktree';
+      const expectedFile = path.join(os.tmpdir(), 'tree-buddy-cd-path');
       
       // Simulate onCdQuit behavior
-      console.log(path);
+      fs.writeFileSync(expectedFile, worktreePath);
       
-      expect(mockLog).toHaveBeenCalledWith(path);
-      mockLog.mockRestore();
+      expect(mockWriteFileSync).toHaveBeenCalledWith(expectedFile, worktreePath);
+      mockWriteFileSync.mockRestore();
     });
   });
 
