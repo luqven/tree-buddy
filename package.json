@@ -1,6 +1,6 @@
 {
   "name": "tree-buddy",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "macOS menubar app for managing git worktrees",
   "type": "module",
   "main": "dist/main/index.js",
