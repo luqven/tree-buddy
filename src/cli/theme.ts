@@ -8,7 +8,8 @@
 export type AnsiColor = 
   | 'black' | 'red' | 'green' | 'yellow' | 'blue' | 'magenta' | 'cyan' | 'white'
   | 'brightBlack' | 'brightRed' | 'brightGreen' | 'brightYellow' 
-  | 'brightBlue' | 'brightMagenta' | 'brightCyan' | 'brightWhite';
+  | 'brightBlue' | 'brightMagenta' | 'brightCyan' | 'brightWhite'
+  | 'default'; // Use terminal's default foreground color
 
 export interface Theme {
   name: string;
@@ -62,7 +63,7 @@ export const solarizedTheme: Theme = {
     badgeMain: 'magenta',
     
     actionKey: 'cyan',
-    actionLabel: 'white',
+    actionLabel: 'default',  // Use terminal default for readability
     actionDisabled: 'brightBlack',
     actionHighlight: 'yellow',
   },
@@ -90,7 +91,7 @@ export const draculaTheme: Theme = {
     badgeMain: 'cyan',
     
     actionKey: 'magenta',
-    actionLabel: 'white',
+    actionLabel: 'default',  // Use terminal default for readability
     actionDisabled: 'brightBlack',
     actionHighlight: 'cyan',
   },
@@ -118,7 +119,7 @@ export const nordTheme: Theme = {
     badgeMain: 'blue',
     
     actionKey: 'blue',
-    actionLabel: 'white',
+    actionLabel: 'default',  // Use terminal default for readability
     actionDisabled: 'brightBlack',
     actionHighlight: 'cyan',
   },
@@ -146,7 +147,7 @@ export const monokaiTheme: Theme = {
     badgeMain: 'green',
     
     actionKey: 'yellow',
-    actionLabel: 'white',
+    actionLabel: 'default',  // Use terminal default for readability
     actionDisabled: 'brightBlack',
     actionHighlight: 'magenta',
   },
@@ -248,13 +249,16 @@ export function isPreviewing(): boolean {
 /**
  * Map AnsiColor to OpenTUI fg prop value
  * OpenTUI uses lowercase color names
+ * 
+ * Note: 'default' returns undefined to use terminal's default foreground,
+ * which works correctly on both light and dark terminal themes.
  */
 export function toFg(color: AnsiColor | undefined): string | undefined {
-  if (!color) return undefined;
+  if (!color || color === 'default') return undefined;
   
   // Map bright colors to their base + bold, or just return the color
   // OpenTUI might handle these differently, so we normalize
-  const colorMap: Record<AnsiColor, string> = {
+  const colorMap: Record<Exclude<AnsiColor, 'default'>, string> = {
     black: 'black',
     red: 'red',
     green: 'green',

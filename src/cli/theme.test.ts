@@ -83,6 +83,10 @@ describe('theme', () => {
       expect(toFg(undefined)).toBeUndefined();
     });
 
+    it('returns undefined for default color (uses terminal default)', () => {
+      expect(toFg('default')).toBeUndefined();
+    });
+
     it('maps base ANSI colors to themselves', () => {
       const baseColors: AnsiColor[] = [
         'black', 'red', 'green', 'yellow',
@@ -221,6 +225,7 @@ describe('theme', () => {
       'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
       'brightBlack', 'brightRed', 'brightGreen', 'brightYellow',
       'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite',
+      'default',
     ]);
 
     for (const theme of allThemes) {
