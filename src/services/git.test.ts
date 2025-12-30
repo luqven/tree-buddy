@@ -36,8 +36,8 @@ describe('git service', () => {
     wt1 = join(tmp, 'wt-main');
     wt2 = join(tmp, 'wt-feature');
 
-    // Create bare repo
-    execSync(`git init --bare "${bareRepo}"`);
+    // Create bare repo with main as default branch
+    execSync(`git init --bare --initial-branch=main "${bareRepo}"`);
 
     // Create initial worktree with a commit
     execSync(`git clone "${bareRepo}" "${wt1}"`);
