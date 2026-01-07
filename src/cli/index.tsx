@@ -7,15 +7,10 @@ import { join } from "path";
 import { App } from "./App";
 import { AppService } from "../services/AppService";
 import { createCliAdapter } from "./CliAdapter";
+import { handleList, handleAdd, handleRemove } from "./commands";
 
 // VERSION is injected at build time via --define, fallback to 'dev' for development
 declare const VERSION: string | undefined;
-
-// Handle --version flag before starting the app
-if (process.argv.includes('--version') || process.argv.includes('-v')) {
-  console.log(`tb ${typeof VERSION !== 'undefined' ? VERSION : 'dev'}`);
-  process.exit(0);
-}
 
 // Use /tmp directly for compatibility with shell function (not tmpdir() which resolves to /var/folders/... on macOS)
 const CD_PATH_FILE = '/tmp/tree-buddy-cd-path';
@@ -40,12 +35,61 @@ function cleanup() {
   process.stdout.write('\x1b[?1049l\x1b[?25h');
 }
 
+// Handle flags and subcommands before starting the app
+const args = process.argv.slice(2);
+
+async function handleSubcommands() {
+  const cmd = args[0];
+  const subcommands = ['add', 'create', 'switch', 'rm', 'remove', 'list', 'ls'];
+
+  if (!subcommands.includes(cmd)) {
+    // If not a subcommand, treat it as a branch/path to switch/add
+    await handleAdd([cmd]);
+    return;
+  }
+
+  if (cmd === 'list' || cmd === 'ls') {
+    await handleList(args.slice(1));
+    process.exit(0);
+  }
+
+  if (cmd === 'add' || cmd === 'create' || cmd === 'switch') {
+    await handleAdd(args.slice(1), cmd === 'switch');
+  }
+
+  if (cmd === 'rm' || cmd === 'remove') {
+    await handleRemove(args.slice(1));
+  }
+}
+
+if (args.includes('--version') || args.includes('-v')) {
+  console.log(`tb ${typeof VERSION !== 'undefined' ? VERSION : 'dev'}`);
+  process.exit(0);
+}
+
+if (args.includes('--help') || args.includes('-h')) {
+  console.log(`Usage:
+  tb                Open interactive UI
+  tb <branch>       Switch to or create worktree for <branch>
+  tb list           List all worktrees
+  tb add <branch>   Switch to or create worktree for <branch>
+  tb rm <branch>    Remove worktree for <branch>
+  tb rm -f <branch> Force remove worktree for <branch>
+  tb --version      Show version
+  tb --help         Show this help`);
+  process.exit(0);
+}
+
 // Clean up any stale cd path file on startup
 if (existsSync(CD_PATH_FILE)) {
   try { unlinkSync(CD_PATH_FILE); } catch {}
 }
 
 async function main() {
+  if (args.length > 0 && !args[0].startsWith('-')) {
+    await handleSubcommands();
+  }
+
   renderer = await createCliRenderer({
     exitOnCtrlC: false, // We'll handle it ourselves
   });
