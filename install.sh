@@ -3,9 +3,21 @@ set -e
 
 # Tree Buddy CLI installer
 # Usage: curl -fsSL https://raw.githubusercontent.com/luqven/tree-buddy/main/install.sh | bash
+# Non-interactive: curl -fsSL ... | bash -s -- -y
 
 REPO="luqven/tree-buddy"
 BINARY_NAME="tb"
+INSTALL_WT_ALIAS=false
+NON_INTERACTIVE=false
+
+# Parse command line arguments
+for arg in "$@"; do
+  case "$arg" in
+    -y|--yes)
+      NON_INTERACTIVE=true
+      ;;
+  esac
+done
 
 # Colors for output
 RED='\033[0;31m'
@@ -58,6 +70,13 @@ get_latest_version() {
 
 # Choose install location
 choose_install_dir() {
+  if [ "$NON_INTERACTIVE" = true ]; then
+    INSTALL_DIR="/usr/local/bin"
+    NEEDS_SUDO=true
+    info "Install directory: $INSTALL_DIR"
+    return
+  fi
+
   echo ""
   info "Where would you like to install $BINARY_NAME?"
   echo "  1) /usr/local/bin (requires sudo)"
@@ -80,6 +99,25 @@ choose_install_dir() {
   info "Install directory: $INSTALL_DIR"
 }
 
+# Ask about wt alias
+ask_wt_alias() {
+  if [ "$NON_INTERACTIVE" = true ]; then
+    INSTALL_WT_ALIAS=true
+    return
+  fi
+
+  echo ""
+  read -p "Would you like to also install 'wt' as an alias for 'tb'? [Y/n]: " choice
+  case "$choice" in
+    n|N)
+      INSTALL_WT_ALIAS=false
+      ;;
+    *)
+      INSTALL_WT_ALIAS=true
+      ;;
+  esac
+}
+
 # Download and install binary
 install_binary() {
   DOWNLOAD_URL="https://github.com/$REPO/releases/download/$VERSION/$BINARY_NAME-$PLATFORM"
@@ -98,6 +136,16 @@ install_binary() {
   fi
 
   success "Installed $BINARY_NAME to $INSTALL_DIR/$BINARY_NAME"
+
+  # Install wt symlink if requested
+  if [ "$INSTALL_WT_ALIAS" = true ]; then
+    if [ "$NEEDS_SUDO" = true ]; then
+      sudo ln -sf "$INSTALL_DIR/$BINARY_NAME" "$INSTALL_DIR/wt"
+    else
+      ln -sf "$INSTALL_DIR/$BINARY_NAME" "$INSTALL_DIR/wt"
+    fi
+    success "Installed 'wt' alias -> $INSTALL_DIR/wt"
+  fi
 }
 
 # Check if install dir is in PATH
@@ -142,8 +190,26 @@ tb() {
     fi
   fi
 }
-
 EOF
+
+  if [ "$INSTALL_WT_ALIAS" = true ]; then
+    cat << 'EOF'
+
+wt() {
+  command tb "$@"
+  local cd_file="/tmp/tree-buddy-cd-path"
+  if [[ -f "$cd_file" ]]; then
+    local target=$(cat "$cd_file")
+    rm -f "$cd_file"
+    if [[ -d "$target" ]]; then
+      cd "$target"
+    fi
+  fi
+}
+EOF
+  fi
+
+  echo ""
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   echo ""
   echo "After adding the function, reload your shell:"
@@ -162,6 +228,7 @@ main() {
   detect_platform
   get_latest_version
   choose_install_dir
+  ask_wt_alias
   install_binary
   check_path
   print_shell_setup
