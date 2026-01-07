@@ -12,12 +12,39 @@ See [CLI documentation](docs/cli.md) for manual installation and shell setup.
 
 ## Usage
 
+### Interactive UI
+
 ```bash
-tb              # Launch the TUI
-tb --version    # Show version
+tb              # Launch the interactive TUI
 ```
 
 Navigate with `j`/`k`, quit with `q`, open command palette with `/`, help with `?`.
+
+### CLI Commands
+
+Tree Buddy supports fast, non-interactive commands for common tasks:
+
+```bash
+tb list           # List all projects and worktrees
+tb <branch>       # Switch to (or create) a worktree for <branch>
+tb add <branch>   # Explicitly create/add a worktree
+tb rm <branch>    # Remove a worktree
+tb --help         # Show all available commands
+```
+
+### Example: `tb list`
+
+```text
+Tree Buddy | Projects
+
+> tree-buddy (1)
+   ● .                                                  [main] [main]
+
+> my-cool-project (3)
+   ● .                                                  [main] [main]
+   ● .worktree/feat-cli                                 [feat-cli]
+   ● .worktree/bugfix-login                             [bugfix-login] [locked]
+```
 
 ## Requirements
 
