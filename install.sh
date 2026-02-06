@@ -46,9 +46,8 @@ detect_platform() {
       ;;
     Linux)
       case "$ARCH" in
-        aarch64) PLATFORM="linux-arm64" ;;
         x86_64) PLATFORM="linux-x64" ;;
-        *) error "Unsupported architecture: $ARCH" ;;
+        *) error "Unsupported Linux architecture: $ARCH (only x64 supported)" ;;
       esac
       ;;
     *)
