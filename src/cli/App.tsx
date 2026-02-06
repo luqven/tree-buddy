@@ -125,6 +125,9 @@ export function App({ service, adapter }: AppProps) {
   const [candidateIdx, setCandidateIdx] = useState(0);
   const [createState, setCreateState] = useState<CreateWorktreeState | null>(null);
   const [inputValue, setInputValue] = useState('');
+
+  // Toast state
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' | 'info' } | null>(null);
   
   // Command palette state
   const [paletteFilter, setPaletteFilter] = useState('');
@@ -184,8 +187,20 @@ export function App({ service, adapter }: AppProps) {
     }
   }, [status]);
 
+  // Auto-dismiss toast after 3 seconds
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
   const showStatus = useCallback((msg: string) => {
     setStatus(msg);
+  }, []);
+
+  const showToast = useCallback((msg: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToast({ msg, type });
   }, []);
 
   const handleConfirm = useCallback((msg: string, onConfirm: () => void) => {
@@ -195,12 +210,12 @@ export function App({ service, adapter }: AppProps) {
 
   // Load candidates for add-project mode
   const loadCandidates = useCallback(async () => {
-    showStatus('Scanning for projects...');
+    showToast('Scanning for projects...', 'info');
     const c = await service.getCandidates();
     setCandidates(c);
     setCandidateIdx(0);
     setMode('add-project');
-    showStatus(`Found ${c.length} project(s)`);
+    showToast(`Found ${c.length} project(s)`, 'info');
   }, [service, showStatus]);
 
   // Start create worktree flow
@@ -208,7 +223,7 @@ export function App({ service, adapter }: AppProps) {
     if (!selectedItem) return;
     const proj = selectedItem.project;
     
-    showStatus('Loading branches...');
+    showToast('Loading branches...', 'info');
     const branches = await service.getRemoteBranches(proj.id);
     const localBranches = await service.getLocalBranches(proj.id);
     const allBranches = [...new Set([...localBranches, ...branches])].sort();
@@ -223,7 +238,7 @@ export function App({ service, adapter }: AppProps) {
     });
     setInputValue('');
     setMode('create-worktree');
-    showStatus('Enter branch name');
+    showToast('Enter branch name', 'info');
   }, [selectedItem, service, showStatus]);
 
   // Build command list for command palette
@@ -243,19 +258,19 @@ export function App({ service, adapter }: AppProps) {
         if (selectedItem) {
           const path = selectedItem.type === 'project' ? (selectedItem.data as Project).root : (selectedItem.data as Branch).path;
           service.openPath(path);
-          showStatus(`Opened: ${basename(path)}`);
+          showToast(`Opened: ${basename(path)}`, 'info');
         }
       }},
       { id: 'terminal', title: 'Open in Terminal', key: 't', category: 'Actions', enabled: !!selectedItem, onSelect: () => {
         if (selectedItem) {
           const path = selectedItem.type === 'project' ? (selectedItem.data as Project).root : (selectedItem.data as Branch).path;
           service.openInTerminal(path);
-          showStatus(`Terminal: ${basename(path)}`);
+          showToast(`Terminal: ${basename(path)}`, 'info');
         }
       }},
       { id: 'refresh', title: 'Refresh all', key: 'r', category: 'Actions', enabled: true, onSelect: () => {
-        showStatus('Refreshing...');
-        service.refreshAll(true).then(() => showStatus('Refreshed'));
+        showToast('Refreshing...', 'info');
+        service.refreshAll(true).then(() => showToast('Refreshed', 'success'));
       }},
       
       // Worktree
@@ -267,9 +282,9 @@ export function App({ service, adapter }: AppProps) {
             ? `Delete ${brData.name}? (has uncommitted changes) [y/n]`
             : `Delete ${brData.name}? [y/n]`;
           handleConfirm(msg, () => {
-            showStatus(`Deleting ${brData.name}...`);
+            showToast(`Deleting ${brData.name}...`, 'info');
             service.deleteWorktree(selectedItem.project.root, brData.path, brData.status.dirty, true)
-              .then((ok) => showStatus(ok ? `Deleted: ${brData.name}` : `Failed to delete: ${brData.name}`));
+              .then((ok) => showToast(ok ? `Deleted: ${brData.name}` : `Failed to delete: ${brData.name}`, ok ? 'success' : 'error'));
           });
         }
       }},
@@ -280,7 +295,7 @@ export function App({ service, adapter }: AppProps) {
           return brData.merged && !brData.isMain && !brData.isCurrent && !brData.locked && !brData.status.dirty;
         });
         if (merged.length === 0) {
-          showStatus('No merged branches to clean up');
+        showToast('No merged branches to clean up', 'info');
           return;
         }
         handleConfirm(`Delete ${merged.length} merged worktree(s)? [y/n]`, () => {
@@ -290,9 +305,9 @@ export function App({ service, adapter }: AppProps) {
             force: false,
             useTrash: true,
           }));
-          showStatus(`Deleting ${items.length} worktrees...`);
-          service.deleteWorktrees(items).then((ok) => 
-            showStatus(ok ? `Deleted ${items.length} worktrees` : 'Some deletions failed')
+          showToast(`Deleting ${items.length} worktrees...`, 'info');
+          service.deleteWorktrees(items).then((ok) =>
+            showToast(ok ? `Deleted ${items.length} worktrees` : 'Some deletions failed', ok ? 'success' : 'error')
           );
         });
       }},
@@ -300,9 +315,9 @@ export function App({ service, adapter }: AppProps) {
         if (selectedItem?.type === 'branch') {
           const brData = selectedItem.data as Branch;
           const action = brData.locked ? 'Unlocking' : 'Locking';
-          showStatus(`${action}...`);
+          showToast(`${action}...`, 'info');
           const fn = brData.locked ? service.unlockWorktree.bind(service) : service.lockWorktree.bind(service);
-          fn(brData.path).then(() => showStatus(`${action.replace('ing', 'ed')}: ${brData.name}`));
+          fn(brData.path).then(() => showToast(`${action.replace('ing', 'ed')}: ${brData.name}`, 'success'));
         }
       }},
       
@@ -310,17 +325,17 @@ export function App({ service, adapter }: AppProps) {
       { id: 'fetch', title: 'Fetch', key: 'f', category: 'Git', enabled: !!br, onSelect: () => {
         if (selectedItem?.type === 'branch') {
           const brData = selectedItem.data as Branch;
-          showStatus(`Fetching ${brData.name}...`);
-          service.fetchWorktree(brData.path).then(() => showStatus('Fetch complete'));
+          showToast(`Fetching ${brData.name}...`, 'info');
+          service.fetchWorktree(brData.path).then(() => showToast('Fetch complete', 'success'));
         }
       }},
       { id: 'pull', title: 'Pull', key: 'p', category: 'Git', enabled: !!canPull, onSelect: () => {
         if (selectedItem?.type === 'branch') {
           const brData = selectedItem.data as Branch;
-          showStatus(`Pulling ${brData.name}...`);
+          showToast(`Pulling ${brData.name}...`, 'info');
           service.pullWorktree(brData.path)
-            .then(() => showStatus('Pull complete'))
-            .catch((err: Error) => showStatus(`Pull failed: ${err.message}`));
+            .then(() => showToast('Pull complete', 'success'))
+            .catch((err: Error) => showToast(`Pull failed: ${err.message}`, 'error'));
         }
       }},
       
@@ -331,7 +346,7 @@ export function App({ service, adapter }: AppProps) {
           const projData = selectedItem.data as Project;
           handleConfirm(`Remove project ${projData.name}? [y/n]`, () => {
             service.removeProject(projData.id);
-            showStatus(`Removed: ${projData.name}`);
+            showToast(`Removed: ${projData.name}`, 'info');
             setSelectedIndex(Math.max(0, selectedIndex - 1));
           });
         }
@@ -349,7 +364,7 @@ export function App({ service, adapter }: AppProps) {
         const newMode = getTerminalMode() === 'dark' ? 'light' : 'dark';
         setTerminalMode(newMode);
         service.setTerminalMode(newMode);
-        showStatus(`Terminal mode: ${newMode}`);
+        showToast(`Terminal mode: ${newMode}`, 'info');
       }},
       { id: 'help', title: 'Show help', key: '?', category: 'Settings', enabled: true, onSelect: () => setMode('help') },
     ];
@@ -383,6 +398,12 @@ export function App({ service, adapter }: AppProps) {
   }, [filteredCommands]);
 
   useKeyboard((event) => {
+    // Dismiss toast on escape
+    if (toast && event.name === 'escape') {
+      setToast(null);
+      return;
+    }
+
     // Global quit
     if (event.name === 'c' && event.ctrl) {
       service.quit();
@@ -456,7 +477,7 @@ export function App({ service, adapter }: AppProps) {
         const themeName = commitPreview();
         if (themeName) {
           service.setTheme(themeName);
-          showStatus(`Theme: ${themeName}`);
+          showToast(`Theme: ${themeName}`, 'info');
         }
         setMode('normal');
         return;
@@ -492,7 +513,7 @@ export function App({ service, adapter }: AppProps) {
       if (event.name === 'return' && candidates[candidateIdx]) {
         const c = candidates[candidateIdx];
         service.confirmAddProject(c.path, c.name);
-        showStatus(`Added project: ${c.name}`);
+        showToast(`Added project: ${c.name}`, 'success');
         setMode('normal');
         return;
       }
@@ -510,7 +531,7 @@ export function App({ service, adapter }: AppProps) {
         if (event.name === 'return' && inputValue.trim()) {
           setCreateState({ ...createState, branchName: inputValue.trim(), step: 'select-base' });
           setInputValue('');
-          showStatus('Select base branch (or press Enter to create from HEAD)');
+          showToast('Select base branch (or press Enter to create from HEAD)', 'info');
           return;
         }
         if (event.name === 'backspace') {
@@ -537,7 +558,7 @@ export function App({ service, adapter }: AppProps) {
           const baseBranch = createState.selectedIdx === 0 ? undefined : createState.branches[createState.selectedIdx - 1];
           const worktreePath = join(dirname(createState.projectRoot), createState.branchName);
           
-          showStatus(`Creating worktree ${createState.branchName}...`);
+          showToast(`Creating worktree ${createState.branchName}...`, 'info');
           service.createWorktree({
             projectId: createState.projectId,
             path: worktreePath,
@@ -545,9 +566,9 @@ export function App({ service, adapter }: AppProps) {
             createBranch: true,
             baseBranch,
           }).then(() => {
-            showStatus(`Created worktree: ${createState.branchName}`);
+            showToast(`Created worktree: ${createState.branchName}`, 'success');
           }).catch((err: Error) => {
-            showStatus(`Error: ${err.message}`);
+            showToast(`Error: ${err.message}`, 'error');
           });
           
           setCreateState(null);
@@ -611,8 +632,8 @@ export function App({ service, adapter }: AppProps) {
     }
 
     if (event.name === 'r') {
-      showStatus('Refreshing...');
-      service.refreshAll(true).then(() => showStatus('Refreshed'));
+      showToast('Refreshing...', 'info');
+      service.refreshAll(true).then(() => showToast('Refreshed', 'success'));
       return;
     }
 
@@ -622,7 +643,7 @@ export function App({ service, adapter }: AppProps) {
           ? (selectedItem.data as Project).root 
           : (selectedItem.data as Branch).path;
         service.openPath(path);
-        showStatus(`Opened: ${basename(path)}`);
+        showToast(`Opened: ${basename(path)}`, 'info');
       }
       return;
     }
@@ -633,7 +654,7 @@ export function App({ service, adapter }: AppProps) {
           ? (selectedItem.data as Project).root 
           : (selectedItem.data as Branch).path;
         service.openInTerminal(path);
-        showStatus(`Terminal: ${basename(path)}`);
+        showToast(`Terminal: ${basename(path)}`, 'info');
       }
       return;
     }
@@ -642,13 +663,13 @@ export function App({ service, adapter }: AppProps) {
       if (selectedItem?.type === 'branch') {
         const br = selectedItem.data as Branch;
         if (br.isMain) {
-          showStatus('Cannot lock main worktree');
+          showToast('Cannot lock main worktree', 'error');
           return;
         }
         const action = br.locked ? 'Unlocking' : 'Locking';
-        showStatus(`${action}...`);
+        showToast(`${action}...`, 'info');
         const fn = br.locked ? service.unlockWorktree.bind(service) : service.lockWorktree.bind(service);
-        fn(br.path).then(() => showStatus(`${action.replace('ing', 'ed')}: ${br.name}`));
+        fn(br.path).then(() => showToast(`${action.replace('ing', 'ed')}: ${br.name}`, 'success'));
       }
       return;
     }
@@ -657,11 +678,11 @@ export function App({ service, adapter }: AppProps) {
       if (selectedItem?.type === 'branch') {
         const br = selectedItem.data as Branch;
         if (br.isMain || br.isCurrent) {
-          showStatus('Cannot delete main/current worktree');
+          showToast('Cannot delete main/current worktree', 'error');
           return;
         }
         if (br.locked) {
-          showStatus('Cannot delete locked worktree');
+          showToast('Cannot delete locked worktree', 'error');
           return;
         }
 
@@ -670,9 +691,9 @@ export function App({ service, adapter }: AppProps) {
           : `Delete ${br.name}? [y/n]`;
 
         handleConfirm(msg, () => {
-          showStatus(`Deleting ${br.name}...`);
+          showToast(`Deleting ${br.name}...`, 'info');
           service.deleteWorktree(selectedItem.project.root, br.path, br.status.dirty, true)
-            .then((ok) => showStatus(ok ? `Deleted: ${br.name}` : `Failed to delete: ${br.name}`));
+            .then((ok) => showToast(ok ? `Deleted: ${br.name}` : `Failed to delete: ${br.name}`, ok ? 'success' : 'error'));
         });
       }
       return;
@@ -687,7 +708,7 @@ export function App({ service, adapter }: AppProps) {
       });
 
       if (merged.length === 0) {
-        showStatus('No merged branches to clean up');
+        showToast('No merged branches to clean up', 'info');
         return;
       }
 
@@ -698,9 +719,9 @@ export function App({ service, adapter }: AppProps) {
           force: false,
           useTrash: true,
         }));
-        showStatus(`Deleting ${items.length} worktrees...`);
-        service.deleteWorktrees(items).then((ok) => 
-          showStatus(ok ? `Deleted ${items.length} worktrees` : 'Some deletions failed')
+        showToast(`Deleting ${items.length} worktrees...`, 'info');
+        service.deleteWorktrees(items).then((ok) =>
+          showToast(ok ? `Deleted ${items.length} worktrees` : 'Some deletions failed', ok ? 'success' : 'error')
         );
       });
       return;
@@ -709,8 +730,8 @@ export function App({ service, adapter }: AppProps) {
     if (event.name === 'f') {
       if (selectedItem?.type === 'branch') {
         const br = selectedItem.data as Branch;
-        showStatus(`Fetching ${br.name}...`);
-        service.fetchWorktree(br.path).then(() => showStatus('Fetch complete'));
+        showToast(`Fetching ${br.name}...`, 'info');
+        service.fetchWorktree(br.path).then(() => showToast('Fetch complete', 'success'));
       }
       return;
     }
@@ -724,8 +745,8 @@ export function App({ service, adapter }: AppProps) {
         }
         showStatus(`Pulling ${br.name}...`);
         service.pullWorktree(br.path)
-          .then(() => showStatus('Pull complete'))
-          .catch((err: Error) => showStatus(`Pull failed: ${err.message}`));
+          .then(() => showToast('Pull complete', 'success'))
+          .catch((err: Error) => showToast(`Pull failed: ${err.message}`, 'error'));
       }
       return;
     }
@@ -740,7 +761,7 @@ export function App({ service, adapter }: AppProps) {
         const proj = selectedItem.data as Project;
         handleConfirm(`Remove project ${proj.name}? [y/n]`, () => {
           service.removeProject(proj.id);
-          showStatus(`Removed: ${proj.name}`);
+          showToast(`Removed: ${proj.name}`, 'info');
           setSelectedIndex(Math.max(0, selectedIndex - 1));
         });
       }
@@ -1020,12 +1041,15 @@ export function App({ service, adapter }: AppProps) {
 
       {/* Footer: Status line + Action bar */}
       <box flexDirection="column" style={{ marginTop: 1 }}>
+        {/* Toast notification */}
+        <Toast toast={toast} />
+
         {/* Line 1: Status */}
         <box style={{ height: 1 }}>
-          <StatusLine 
-            isRefreshing={state.isRefreshing} 
-            status={status} 
-            selectedItem={selectedItem} 
+          <StatusLine
+            isRefreshing={state.isRefreshing}
+            status={status}
+            selectedItem={selectedItem}
           />
         </box>
         
@@ -1034,6 +1058,26 @@ export function App({ service, adapter }: AppProps) {
           <ActionBar actions={getContextualActions(selectedItem, allItems.length)} />
         </box>
       </box>
+    </box>
+  );
+}
+
+function Toast({ toast }: { toast: { msg: string; type: 'success' | 'error' | 'info' } | null }) {
+  const theme = c();
+  if (!toast) return null;
+
+  const bgColor = toast.type === 'success' ? theme.success : toast.type === 'error' ? theme.error : theme.info;
+  const fgColor = toast.type === 'info' ? '#ffffff' : '#000000';
+
+  return (
+    <box
+      position={{ right: 0, bottom: 0 }}
+      width={toast.msg.length + 4}
+      height={3}
+      border={{ type: 'line', color: bgColor }}
+      background={bgColor}
+    >
+      <text color={fgColor} bold>{toast.msg}</text>
     </box>
   );
 }

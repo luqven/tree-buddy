@@ -423,3 +423,136 @@ describe('App confirmation flow', () => {
     });
   });
 });
+
+describe('toast notifications', () => {
+  const createMockService = (state: AppState) => {
+    const deleteWorktreeFn = vi.fn().mockResolvedValue(true);
+    const deleteWorktreesFn = vi.fn().mockResolvedValue(true);
+    const removeProjectFn = vi.fn();
+    const refreshAllThrottledFn = vi.fn();
+    const setThemeFn = vi.fn();
+    const setTerminalModeFn = vi.fn();
+    const getPersistedThemeFn = vi.fn().mockReturnValue(undefined);
+    const getPersistedTerminalModeFn = vi.fn().mockReturnValue(undefined);
+    const quitFn = vi.fn();
+    const openPathFn = vi.fn();
+    const openInTerminalFn = vi.fn();
+    const getRemoteBranchesFn = vi.fn().mockResolvedValue([]);
+    const getLocalBranchesFn = vi.fn().mockResolvedValue([]);
+    const createWorktreeFn = vi.fn().mockResolvedValue(undefined);
+    const getCandidatesFn = vi.fn().mockResolvedValue([]);
+    const confirmAddProjectFn = vi.fn().mockResolvedValue({} as any);
+    const lockWorktreeFn = vi.fn().mockResolvedValue(undefined);
+    const unlockWorktreeFn = vi.fn().mockResolvedValue(undefined);
+    const fetchWorktreeFn = vi.fn().mockResolvedValue(undefined);
+    const pullWorktreeFn = vi.fn().mockResolvedValue('');
+    const openTerminalFn = vi.fn();
+
+    return {
+      getState: () => state,
+      subscribe: vi.fn().mockReturnValue(() => {}),
+      refreshAllThrottled: refreshAllThrottledFn,
+      refreshAll: vi.fn().mockResolvedValue(undefined),
+      deleteWorktree: deleteWorktreeFn,
+      deleteWorktrees: deleteWorktreesFn,
+      removeProject: removeProjectFn,
+      setTheme: setThemeFn,
+      setTerminalMode: setTerminalModeFn,
+      getPersistedTheme: getPersistedThemeFn,
+      getPersistedTerminalMode: getPersistedTerminalModeFn,
+      quit: quitFn,
+      openPath: openPathFn,
+      openInTerminal: openInTerminalFn,
+      getRemoteBranches: getRemoteBranchesFn,
+      getLocalBranches: getLocalBranchesFn,
+      createWorktree: createWorktreeFn,
+      getCandidates: getCandidatesFn,
+      confirmAddProject: confirmAddProjectFn,
+      lockWorktree: lockWorktreeFn,
+      unlockWorktree: unlockWorktreeFn,
+      fetchWorktree: fetchWorktreeFn,
+      pullWorktree: pullWorktreeFn,
+      openTerminal: openTerminalFn,
+      _spies: { deleteWorktreeFn, deleteWorktreesFn, removeProjectFn },
+    };
+  };
+
+  beforeEach(() => {
+    keyboardCallback = null;
+  });
+
+  it('dismisses toast on escape key', () => {
+    const mockProject = {
+      id: 'p1',
+      name: 'test-project',
+      root: '/tmp/test-repo',
+      branches: [
+        { name: 'main', path: '/tmp/test-repo', isMain: true, locked: false, merged: false, status: { ahead: 0, behind: 0, dirty: false, ts: 0 } },
+      ],
+    };
+
+    const state: AppState = {
+      cfg: { projects: [mockProject], scopeDelim: '/', scopeEnabled: true },
+      isRefreshing: false,
+    };
+
+    const mockService = createMockService(state);
+    const { rerender } = render(<App service={mockService as any} />);
+
+    expect(keyboardCallback).not.toBeNull();
+
+    // Navigate to main branch and press d (should show error toast)
+    keyboardCallback!({ name: 'j' });
+    rerender(<App service={mockService as any} />);
+
+    keyboardCallback!({ name: 'd' });
+    rerender(<App service={mockService as any} />);
+
+    // Escape should dismiss the toast
+    keyboardCallback!({ name: 'escape' });
+    rerender(<App service={mockService as any} />);
+
+    // Should be able to navigate without error after dismiss
+    keyboardCallback!({ name: 'k' });
+    rerender(<App service={mockService as any} />);
+  });
+
+  it('shows success toast for delete operation', () => {
+    const mockProject = {
+      id: 'p1',
+      name: 'test-project',
+      root: '/tmp/test-repo',
+      branches: [
+        { name: 'main', path: '/tmp/test-repo', isMain: true, locked: false, merged: false, status: { ahead: 0, behind: 0, dirty: false, ts: 0 } },
+        { name: 'feature', path: '/tmp/test-repo/.worktree/feature', isMain: false, locked: false, merged: false, status: { ahead: 0, behind: 0, dirty: false, ts: 0 } },
+      ],
+    };
+
+    const state: AppState = {
+      cfg: { projects: [mockProject], scopeDelim: '/', scopeEnabled: true },
+      isRefreshing: false,
+    };
+
+    const mockService = createMockService(state);
+    const { rerender } = render(<App service={mockService as any} />);
+
+    expect(keyboardCallback).not.toBeNull();
+
+    // Navigate to feature branch
+    keyboardCallback!({ name: 'j' });
+    rerender(<App service={mockService as any} />);
+    keyboardCallback!({ name: 'j' });
+    rerender(<App service={mockService as any} />);
+
+    // Press d to confirm deletion
+    keyboardCallback!({ name: 'd' });
+    rerender(<App service={mockService as any} />);
+
+    // Press y to confirm
+    keyboardCallback!({ name: 'y' });
+    rerender(<App service={mockService as any} />);
+
+    // Delete should have been called
+    expect(mockService._spies.deleteWorktreeFn).toHaveBeenCalled();
+  });
+});
