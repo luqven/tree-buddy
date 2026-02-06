@@ -56,20 +56,20 @@ describe('App TUI component', () => {
     it('calls quit when q is pressed', () => {
       const quitSpy = vi.spyOn(service, 'quit');
       render(<App service={service} />);
-      
+
       expect(keyboardCallback).not.toBeNull();
       keyboardCallback!({ name: 'q' });
-      
+
       expect(quitSpy).toHaveBeenCalled();
     });
 
     it('calls quit when Ctrl+C is pressed', () => {
       const quitSpy = vi.spyOn(service, 'quit');
       render(<App service={service} />);
-      
+
       expect(keyboardCallback).not.toBeNull();
       keyboardCallback!({ name: 'c', ctrl: true });
-      
+
       expect(quitSpy).toHaveBeenCalled();
     });
 
@@ -160,21 +160,21 @@ describe('App TUI component', () => {
 
     it('navigates command palette with arrow keys', () => {
       const { rerender } = render(<App service={service} />);
-      
+
       expect(keyboardCallback).not.toBeNull();
-      
+
       // Press / to open command palette
       keyboardCallback!({ sequence: '/' });
       rerender(<App service={service} />);
-      
+
       // Navigate down
       keyboardCallback!({ name: 'down' });
       rerender(<App service={service} />);
-      
+
       // Navigate up
       keyboardCallback!({ name: 'up' });
       rerender(<App service={service} />);
-      
+
       // Close
       keyboardCallback!({ name: 'escape' });
       rerender(<App service={service} />);

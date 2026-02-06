@@ -664,11 +664,11 @@ export function App({ service, adapter }: AppProps) {
           showStatus('Cannot delete locked worktree');
           return;
         }
-        
-        const msg = br.status.dirty 
+
+        const msg = br.status.dirty
           ? `Delete ${br.name}? (has uncommitted changes) [y/n]`
           : `Delete ${br.name}? [y/n]`;
-        
+
         handleConfirm(msg, () => {
           showStatus(`Deleting ${br.name}...`);
           service.deleteWorktree(selectedItem.project.root, br.path, br.status.dirty, true)
